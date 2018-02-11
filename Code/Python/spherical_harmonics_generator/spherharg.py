@@ -18,9 +18,17 @@ import scipy.special as f_base
 import math
 import numpy as np
 import time
-
+import os
+import gc
+import psutil
+import sys
+syspath = os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/py_mail"))
+sys.path.append(syspath)
+from mailbot import email_bot
 start_time = time.time()
 
+pid = os.getpid()
+psu = psutil.Process(pid)
 l0 = int(input("l0 = "))
 l1 = int(input("l1 = "))
 
@@ -41,7 +49,6 @@ def calculate_harmonics(l0,l1):
     thetas = np.linspace(0,2*math.pi,N)
     phis = np.linspace(0,math.pi,N)
     
-    arrays = []
     
     for l in range(l0,l1):
         print("===============")
@@ -69,15 +76,19 @@ def calculate_harmonics(l0,l1):
             l_arr.append(m_frame)
             
 
-        arrays.append(l_arr)
         #note: replace path with profile on machine! Needs to be done by user!
         path = "F:\Programming\Project\git\Code\Python\spherical_harmonics_generator\harmonics/"
         file = open(path + "spher_har_l_"+str(l)+".dat","wb")
+       
         pickle.dump(l_arr,file)
+        print("RAM usage before closing the file: "+str(psu.memory_info()[0]/2**30) + " Gb")
         file.close()
+        print("RAM usage before collection: "+str(psu.memory_info()[0]/2**30) + " Gb")
+        gc.collect()
+        print("RAM usage after collection: "+str(psu.memory_info()[0]/2**30) + " Gb")
         print("File "+path + "spher_har_l"+str(l)+".dat"+" generated and saved.")
     
-    return arrays
+    return 0
 
                     
 calculate_harmonics(l0,l1)
