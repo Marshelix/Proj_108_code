@@ -97,7 +97,7 @@ def calculate_harmonics(l0,l1):
             
 
         #note: replace path with profile on machine! Needs to be done by user!
-        path = "F:\Programming\Project\git\Code\Python\spherical_harmonics_generator\harmonics/"
+        path = os.path.dirname(__file__)+"\harmonics/"
         file = open(path + "spher_har_l_"+str(l)+".dat","wb")
        
         pickle.dump(l_arr,file)
