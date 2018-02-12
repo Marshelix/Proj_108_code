@@ -23,16 +23,23 @@ import os
 import gc
 import psutil
 import sys
-syspath = os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/py_mail"))
-sys.path.append(syspath)
+mailpath = os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/py_mail"))
+sys.path.append(mailpath)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/Setup")))
 from mailbot import email_bot
+from Setup import setup
 start_time = time.time()
-#email
-username = input("Username for email: ")
-password = input("Password for email: ")
-server = input("Mail server address(ip:port): ")
 
-bot = email_bot(username,username,server,password,username,600)
+#Setup
+settings = setup.create_settings()
+print(settings)
+
+#email
+username = settings["Email"][4]
+password = settings["Email"][3]
+server = settings["Email"][2]
+
+bot = email_bot(settings["Email"][0],settings["Email"][1],server,password,username,int(settings["Email"][5]))
 bot.set_topic("Program Started")
 bot.append_message("Program has commenced at " + str(datetime.now())) 
 
