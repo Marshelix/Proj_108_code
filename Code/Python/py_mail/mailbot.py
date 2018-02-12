@@ -76,6 +76,6 @@ class email_bot:
             
             #reset mail message
             self.msg = ""
-            self.topic = ""
+            
         else:
             print("Too soon to send more emails - trying later.")
