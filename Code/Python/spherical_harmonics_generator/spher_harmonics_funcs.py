@@ -6,7 +6,7 @@ Created on Wed Feb 14 14:39:17 2018
 
 Function file for a custom implementation of spherical harmonics.
 This file covers:
-    P_lsave(l,x):
+    Plm_save(l,x):
         define the Legendre polynomial of the lth degree for x, then save them to the file
     spher_harm_custom(l,m,theta,phi):
         Returns the spherical harmonics over arrays theta, phi for the value of l,m. Returns as a dataframe.
@@ -41,122 +41,56 @@ print(settings)
 datapath = settings["Spherharg"][2]  #spherical harmonics data
 datapath_leg = settings["Spherharg"][3]
 
-'''
-
-    So far, nothing in here works!!!!!!!!!!
-
-
-
-'''
-def P_lsave(l,m,x):
+def Plm_save(l,m,theta):
     '''
-        Find the legendre polynomial of degree l for values of x
-        cast data into dataframe, and if file doesnt exist, save to file
+    theta : Angles to compute the polynomials for
+    l: degree of the polynomial
+    m: order of the polynomial    
     '''
     filename = "leg_l_"+str(l)+"_m_"+str(m)+".dat"
-    leg_pol_data = []
     cols = [str(m)]
-    if type(x) == type([]):
-        ind = np.arange(len(x))
-    else:#
-        ind = [0]
-    df = pd.DataFrame(0,index = ind, columns = cols)
+    index = theta
+    x = np.cos(theta)
+    print(l)
+    print(m)
+    
+    df = pd.DataFrame(0,index = index, columns = cols)
     print(datapath_leg+filename)
     if not os.path.exists(datapath_leg+filename) or os.path.getsize(datapath_leg+filename) == 0:
-        #file doesnt yet exist, save to file, or exists but is empty.
-        data = []
-        for elem in x:
-            leg_pol_data =  func_base.lpmn(m,l,elem)[0]
-            data.append(leg_pol_data)
-            print(leg_pol_data)
-            print(leg_pol_data.shape)
-            print(type(leg_pol_data))
-        print(data)
-        data = np.array(data)
-        print(type(data))
-        print(len(data))
-        df = pd.DataFrame(data,index = ind, columns = cols)
+        gen_time_start = time.time()
+        pl_vals = func_base.lpmv(m,l,x)
+        gen_time_elapsed = time.time() - gen_time_start
+        print("Generation of data took : "+repr(gen_time_elapsed))
+        df = pd.DataFrame(pl_vals,index = index, columns = cols)
+        file_time_start = time.time()
         file = open(datapath_leg+filename,"wb")
+        print("File opened")
         pickle.dump(df,file)
+        print("file written to")
         file.close()
+        file_time_elapsed = time.time()-file_time_start
+        print("File generation took : "+repr(file_time_elapsed))
     else:
          if os.path.getsize(datapath_leg+filename) > 0:
             print("Loading from file.")
             file = open(datapath_leg+filename,"rb")
-            df = pickle.load(file)
+            df2 = pickle.load(file)
             file.close()
+            same_angles_check = len(index) == len(df2.index)
+            if same_angles_check:
+                for i in range(len(df2.index)):
+                    same_angles_check = same_angles_check and df2.index[i] == index[i]
+            if same_angles_check:
+                print("File loaded. Same angles.")
+                df = df2
+    print("==================")
     return df
-'''
-Spherical Harmonics
-'''
-def spher_harm_custom(l,m,theta,phi):
-    '''
-    returns a dataframe of the spherical harmonics ylm using the builtin method for plm
-    '''
+                
 
-    factor_1 = np.sqrt(((2*l+1)/4*np.pi)*(misc.factorial(l-m)/misc.factorial(m+l)))
-  
-   # vec_lpmn = np.vectorize(func_base.lpmn,excluded = ["m","l"])
-    factor_2 = []
-    #print("Theta type = "+str(type(theta)))
-    for t in theta[0]:
-        #print("t = "+str(t))
-        #print("t-type = "+str(type(t)))
-        #print(np.cos(t))
-        ylm = func_base.lpmn(m,l,np.cos(t))[0]
-        print("YLM type: "+str(type(ylm)))
-        print("YLM len: "+str(len(ylm)))
-        print(ylm)
-        print(ylm[0])
-        print(ylm[1])
-        factor_2.append(ylm)
-    fac = []
-    for elem in factor_2:
-        for e in elem:
-            fac.append(e)
-    print(fac)
-    #factor_2 = vec_lpmn(m,l,np.cos(theta))[0]  #associated legendre polynomial for cos(theta)
-    exponents = [1j*m*p for p in phi]   #Apparently can't multiply array of real values by j -> way around this
-    factor_3 = np.exp(exponents)  #j used for imaginary units
-    #print(factor_1)
-    print("Factor_1 type: "+str(type(factor_1)))
-    #print(factor_2)
-    factor_2 = np.array(factor_2)
-    print("Factor_2 type: "+str(type(factor_2)))
-    print("Factor_2 shape: "+str(factor_2.shape))
-    #print(factor_3)
-    print("Factor_3 type: "+str(type(factor_3)))
-    factor11 = factor_1*np.array(factor_2)
-    print(factor11)
-    print("Factor11  type: "+str(type(factor11)))
-    print("Factor11 shape: "+str(factor11.shape))
-    
-    return factor11*factor_3
-'''
-N = int(2*np.pi*10)
-theta = np.linspace(0,2*np.pi,N)
-phi = np.linspace(0,np.pi,N)
-theta,phi = np.meshgrid(theta,phi)
-ylm = spher_harm_custom(2,1,theta,phi)
-print(type(ylm))
-print(ylm.shape)
-time_end = time.time()
-time_elapsed = time_end - start_time
-print("Time elapsed = " + str(repr(time_elapsed)))
-'''
-'''
-#testing spherical harmonics
-
-l_max = 10
-l = np.linspace(0,l_max,11)
-m = np.linspace(0,l_max,11)
-print(theta)
-print(len(theta))
-print(phi)
-print(len(phi))
-theta,phi = np.meshgrid(theta,phi)
-ylm = func_base.sph_harm(l_max,l_max,theta,phi)
-print(ylm)
-print(type(ylm))
-print(ylm.shape)
-'''
+theta = np.linspace(0,2*np.pi,3000)
+start = datetime.now()
+for l in range(1447,2001):
+    for m in range(-l,l+1):
+        Plm_save(l,m,theta)
+elapsed = datetime.now() - start
+print("Elapsed time: "+str(elapsed))
