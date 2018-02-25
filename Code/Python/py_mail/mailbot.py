@@ -51,12 +51,13 @@ class email_bot:
     def set_topic(self,t):
         self.topic = t
    
-    def append_message(self,mess):
+    def append_message(self,mess, send = True):
         '''
         append message to be sent. Then tries to send the message.
         '''
         self.msg = self.msg + mess
-        self.send_email()
+        if send:
+            self.send_email()
     def send_email(self):
         '''
         Send an email based on the last time sent and msg
