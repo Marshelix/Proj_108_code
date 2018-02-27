@@ -50,13 +50,12 @@ def Plm_save(l,m,theta):
     filename = "leg_l_"+str(l)+"_m_"+str(m)+".dat"
     cols = [str(m)]
     index = theta
-    x = np.cos(theta)
-    print(l)
-    print(m)
-    
+
+
     df = pd.DataFrame(0,index = index, columns = cols)
     print(datapath_leg+filename)
     if not os.path.exists(datapath_leg+filename) or os.path.getsize(datapath_leg+filename) == 0:
+        x = np.cos(theta)
         gen_time_start = time.time()
         pl_vals = func_base.lpmv(m,l,x)
         gen_time_elapsed = time.time() - gen_time_start
@@ -88,9 +87,92 @@ def Plm_save(l,m,theta):
                 
 
 theta = np.linspace(0,2*np.pi,3000)
-start = datetime.now()
-for l in range(1447,2001):
+from scipy.misc import factorial
+def ylm_builtin(l,m,theta,phi):
+    prefac = np.sqrt((2*l+1)/2*factorial(l-m)/factorial(l+m))
+    print(prefac)
+    legend = func_base.lpmv(m,l,np.cos(theta)) # 1*len(theta) array
+    print("Legend")
+    print(legend)
+    exponents = [m*1j*x for x in phi]
+    expo = np.exp(exponents)
+    print("Expo")
+    print(expo)
+    values = prefac * np.outer(legend,expo)
+    
+    cols = [str(x) for x in phi]
+    ind = theta
+    df = pd.DataFrame(values,index = ind,columns = cols)
+    return df
+
+def ylm_load(l,m,theta,phi):
+    '''
+    Load the legendre values from file
+    '''
+    prefac = np.sqrt((2*l+1)/2*factorial(l-m)/factorial(l+m))
+    print(prefac)
+    legend = Plm_save(l,m,theta)    #checks if file exists, generates and saves it if not.
+    leg_data = legend[str(m)]
+    print("Legend load:")
+    print(leg_data)
+    exponents = [m*1j*x for x in phi]
+    expo = np.exp(exponents)
+    print("Expo load: ")
+    print(expo)
+    values = prefac * np.outer(leg_data,expo)
+    
+    cols = [str(x) for x in phi]
+    ind = theta
+    df = pd.DataFrame(values,index = ind,columns = cols)
+    return df
+phi = np.linspace(0,np.pi,3000)
+l = m = 85
+start_time_builtin = time.time()
+df1 = ylm_builtin(l,m,theta,phi)
+time_elapsed_builtin = time.time() - start_time_builtin
+print(repr(time_elapsed_builtin))
+start_time_load = time.time()
+df2 = ylm_load(l,m,theta,phi)
+time_elapsed_load = time.time() - start_time_load
+print(repr(time_elapsed_load))
+theta,phi = np.meshgrid(theta,phi)
+data = func_base.sph_harm(l,m,theta,phi)
+print(type(data))
+print(data.shape)
+
+ylm = pd.DataFrame(func_base.sph_harm(l,m,theta,phi),index = theta, columns = [str(x) for x in phi])
+ylm
+
+known_vals = []
+def check_finiteness(l,m,theta):
+    '''
+    Check the file for the Plm (l,m)
+    if data is not finite everywhere, print l,m
+    '''
+    df = Plm_save(l,m,theta)
+    known = False
+    for colname in df:
+        for elem in df[colname]:
+            if known:
+                return -1
+            if not np.isfinite(elem):
+                print("(l,m) = ("+str(l)+","+str(m)+")")
+                known = True
+                known_vals.append((l,m))
+                print("==========================")
+'''
+ls = range(0,501)
+filenum = sum([2*l+1 for l in ls])
+i = 1
+for l in ls:
     for m in range(-l,l+1):
-        Plm_save(l,m,theta)
-elapsed = datetime.now() - start
-print("Elapsed time: "+str(elapsed))
+        print(type(l))
+        print(type(m))
+        check_finiteness(l,m,theta)
+        print(str(100*i/filenum)+"%")
+        i = i+1
+print("Found "+str(len(known_vals))+" values: ")
+for elem in known_vals:
+    print(elem)
+np.savetxt(datapath_leg+"known_vals.txt",known_vals,delimiter = ",")
+'''
