@@ -252,27 +252,28 @@ def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0):
     #filename found
     file_ext_dat = "_"+str(num_maps)+"_data.png"
     file_ext_grad = "_"+str(num_maps)+"_grad.png"
-    file_ext_norm = "_"+str(num_maps)+"_grad_norm.png"
+    #file_ext_norm = "_"+str(num_maps)+"_grad_norm.png"
     TT_spectrum = load_spectra_from_file(power_filename)
 
     clm = sht.SHCoeffs.from_random(TT_spectrum)
 
     grid = clm.expand() #T map
     dat_img = img_name + file_ext_dat
-    print(dat_img)
+    print("Saving data to "+dat_img)
     fig,ax = grid.plot(fname = dat_img)
     grad_data = np.array(np.gradient(grid.data))[1]/T0
     grid2 = sht.SHGrid.from_array(grad_data) #dT/T map
     grad_img = img_name + file_ext_grad
-    print(grad_img)
+    print("Saving gradient to "+grad_img)
     fig,ax = grid2.plot(fname = grad_img)
-    
+    '''
+    #no normalization required at this point
     norm_img = img_name+ file_ext_norm
     print(norm_img)
     maxmin = (np.max(grid2.data)-np.min(grid2.data))
     grid2.data = (grid2.data - np.min(grid2.data))/maxmin
     fig,ax = grid2.plot(fname = norm_img)
-    
+    '''
     return grid,grid2
     
 g1,g2 = gen_map(filename,info_name)
