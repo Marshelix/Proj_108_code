@@ -86,7 +86,7 @@ def Plm_save(l,m,theta):
     return df
                 
 
-theta = np.linspace(0,2*np.pi,3000)
+theta = np.linspace(0,2*np.pi,300)
 from scipy.misc import factorial
 def ylm_builtin(l,m,theta,phi):
     prefac = np.sqrt((2*l+1)/2*factorial(l-m)/factorial(l+m))
@@ -125,6 +125,7 @@ def ylm_load(l,m,theta,phi):
     ind = theta
     df = pd.DataFrame(values,index = ind,columns = cols)
     return df
+'''
 phi = np.linspace(0,np.pi,3000)
 l = m = 85
 start_time_builtin = time.time()
@@ -141,7 +142,7 @@ print(type(data))
 print(data.shape)
 
 ylm = pd.DataFrame(func_base.sph_harm(l,m,theta,phi),index = theta, columns = [str(x) for x in phi])
-ylm
+'''
 
 known_vals = []
 def check_finiteness(l,m,theta):
@@ -176,3 +177,47 @@ for elem in known_vals:
     print(elem)
 np.savetxt(datapath_leg+"known_vals.txt",known_vals,delimiter = ",")
 '''
+import pyshtools as sht
+
+def Plm_pyshtools_asDF(lmax, theta):
+    x = np.cos(theta)
+    print(x)
+    print(type(x))
+    if type(x) == np.ndarray:
+        plms = []
+        print("element is vector")
+        for elem in x:
+            plm = sht.legendre.PlmON(lmax,elem)
+            plms.append(plm)
+        return plms
+    else:
+        plm = sht.legendre.PlmON(lmax,x)
+    print(type(plm))
+    print(plm)
+    print(plm.shape)
+    return plm
+
+def load_spectra_from_file(filename,T0 = 2.725):
+    '''
+    Load a .dat file as a csv, delimiter = "    "
+    '''
+    df = pd.read_csv(filename,header = None, names = ["TT","EE","TE","UNKNOWN_1","UNKNOWN_2"], index_col = 0,delim_whitespace = True)
+    print("Data loaded")
+    premul = T0**2*2*np.pi/1
+    print(df.head())
+    return df["TT"]
+gen_data_path = settings["Spherharg"][4]
+filename = gen_data_path+"camb_74022160_scalcls.dat"
+info_name = gen_data_path+"Data_camb_74022160.txt" #data on what was used to compute it
+
+def read_info(info_name):
+    '''
+    read_info: Opens a txt file containing the information used to generate the input map vector.
+    argument:
+    info_name: str: path + filename to the location
+    '''
+    with open(info_name,"r") as f:
+        for line in f.readlines():
+            print(line)
+
+        
