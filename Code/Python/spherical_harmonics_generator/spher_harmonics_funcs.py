@@ -202,10 +202,22 @@ def load_spectra_from_file(filename,T0 = 2.725):
     Load a .dat file as a csv, delimiter = "    "
     '''
     df = pd.read_csv(filename,header = None, names = ["TT","EE","TE","UNKNOWN_1","UNKNOWN_2"], index_col = 0,delim_whitespace = True)
-    print("Data loaded")
-    premul = T0**2*2*np.pi/1
+    print("Spectrum loaded from "+filename)
+    '''
+    start with T0^2 l(l+1)/2pi Cl
+    want Cl/(2l+1)
+    multiply 1 by 2pi/(T0^2*(l(l+1)(2l+1))
+    '''
+    l = df.index
+    premul = T0**-2*2*np.pi/(l*(l+1)*(2*l+1))
+    '''
+    print(type(premul))
+    print(len(premul))
+    print(len(df.index))
+    print(premul)
     print(df.head())
-    return df["TT"]
+    '''
+    return df["TT"]*premul
 gen_data_path = settings["Spherharg"][4]
 filename = gen_data_path+"camb_74022160_scalcls.dat"
 info_name = gen_data_path+"Data_camb_74022160.txt" #data on what was used to compute it
@@ -220,4 +232,47 @@ def read_info(info_name):
         for line in f.readlines():
             print(line)
 
-        
+num_maps = 0
+def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0):
+    '''
+     Generate a Temperature map using SHtools.
+     Saves this map to a file, named the same as the original and info .png.
+     
+ 
+    '''
+    #find filename for saving
+    img_name = gen_data_path+"maps/"
+    for c in power_filename:
+        if c not in gen_data_path:
+            if c is ".":
+                break
+            else:
+                img_name = img_name + c
+    
+    #filename found
+    file_ext_dat = "_"+str(num_maps)+"_data.png"
+    file_ext_grad = "_"+str(num_maps)+"_grad.png"
+    file_ext_norm = "_"+str(num_maps)+"_grad_norm.png"
+    TT_spectrum = load_spectra_from_file(power_filename)
+
+    clm = sht.SHCoeffs.from_random(TT_spectrum)
+
+    grid = clm.expand() #T map
+    dat_img = img_name + file_ext_dat
+    print(dat_img)
+    fig,ax = grid.plot(fname = dat_img)
+    grad_data = np.array(np.gradient(grid.data))[1]/T0
+    grid2 = sht.SHGrid.from_array(grad_data) #dT/T map
+    grad_img = img_name + file_ext_grad
+    print(grad_img)
+    fig,ax = grid2.plot(fname = grad_img)
+    
+    norm_img = img_name+ file_ext_norm
+    print(norm_img)
+    maxmin = (np.max(grid2.data)-np.min(grid2.data))
+    grid2.data = (grid2.data - np.min(grid2.data))/maxmin
+    fig,ax = grid2.plot(fname = norm_img)
+    
+    return grid,grid2
+    
+g1,g2 = gen_map(filename,info_name)
