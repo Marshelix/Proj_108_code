@@ -523,6 +523,9 @@ def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angula
                             The size the map is split up into
         b_Verbose: bool: Standard False:
                             Whether or not to print out extra information
+    Returns:
+        all_maps: Array:
+            all_maps is the array of all grids calculated for this method, ie the original full map and all segments from it. Each element is a sht.SHGrid
     '''
     if info_file is not "":
         if b_Verbose:
@@ -550,8 +553,8 @@ def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angula
     if b_Verbose:
         print("max T: "+str(np.max(grid.data)))
         print(type(grid))
-    grid.plot(fname = gridfile_name)
-    
+    f0,ax0 = grid.plot(fname = gridfile_name)
+    plt.close(f0)
     num_plots_lat = int(180/angular_size)
     num_plots_long = int(360/angular_size)
     lat_range = int(grid.data.shape[1]/num_plots_lat)
@@ -559,6 +562,7 @@ def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angula
     if b_Verbose:
         print(num_plots_lat,num_plots_long,lat_range,long_range)
     subplot = 0
+    all_maps = [grid]
     
     for a in range(1,num_plots_lat+1):
         for b in range(1,num_plots_long+1):
@@ -589,8 +593,17 @@ def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angula
                 print("G2 shape: "+str(g2.shape))
             g3 = sht.SHGrid.from_array(g2)
             filename = img_name + "_"+str(subplot)+".png"
+            if b_Verbose:
+                print("Plot to be saved to "+filename)
             f,ax = g3.plot(fname = filename)
-            f.close()
+            plt.close(f)
             plt.close("All")
+            all_maps.append(g3)
+    #save all_maps to file
+    amf_name = img_name + ".dat"
+    f = open(amf_name,"wb")
+    pickle.dump(all_maps,f)
+    return all_maps
     
-generate_map_degrees(filename,b_Verbose = True)
+am = generate_map_degrees(filename,b_Verbose = True)
+#save am to file
