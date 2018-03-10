@@ -313,7 +313,7 @@ def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0):
     return clm.expand()/T0
 
 
-def add_strings(grid, G_mu,v,num_strings,tgname,sname):
+def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0):
     '''
         Add n strings to a 0 grid, with random directions.
         Strings are assumed to be 1 element thin, ie only in one dimension, and work as a step function
@@ -327,12 +327,19 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname):
         
         
     '''
+    amp = 0
+    if A != 0:
+        amp = 8*np.pi*A
+    else:
+        amp = 8*np.pi*v*G_mu
+    if A != G_mu*v:
+        v = A/G_mu#force velocity to fit for now
     grid_dim = grid.data.shape
     xmax = grid_dim[0]
     ymax = grid_dim[1]
 
     new_grid_data = np.zeros(shape = (xmax,ymax))
-    amp = 8*np.pi*v*G_mu
+    
     print("Amplitude: "+str(amp))
     for i in range(num_strings):
         '''
@@ -372,7 +379,7 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname):
             
     new_map = sht.SHGrid.from_array(new_grid_data)
     f,ax = new_map.plot(fname = sname)
-    ax.set_title("New map G_mu = "+str(G_mu))
+    ax.set_title("New map G_mu = "+str(G_mu)+",A = "+str(A))
     total_grid_data = new_grid_data + grid.data
     total_grid = sht.SHGrid.from_array(total_grid_data)
     print("TG Data size: "+str(total_grid_data.shape))
@@ -441,9 +448,9 @@ def generate_maps(num_files,num_file_start = 0,b_hasStrings = True,f_stringPerce
             #generate additional strings
             #find a way to have G_mu, v be a range
             n_strings = 1
-            G_mu = 10**-5
-            v = 2*10**5
-            
+            G_mu = 10**-5   #c = 1
+            v = 0.01 #c = 1
+            A = v*G_mu
             #String map name
             img_name = gen_data_path+"maps/"
             for c in s_pfilename:
@@ -456,7 +463,7 @@ def generate_maps(num_files,num_file_start = 0,b_hasStrings = True,f_stringPerce
             tgname = img_name+"_totalmap"+str(i)+".png"
             print("Saving string map to "+smname)
             print("Saving total map to "+tgname)
-            string_map,total_grid = add_strings(g,G_mu,v,n_strings,tgname,smname)
+            string_map,total_grid = add_strings(g,G_mu,v,n_strings,tgname,smname,A)
         #send mail if too much harddrive is used up
         if (psutil.cpu_percent()) > 95:
             bot.set_topic("Error occured")
@@ -486,4 +493,104 @@ def generate_maps(num_files,num_file_start = 0,b_hasStrings = True,f_stringPerce
     bot.append_message("Program has finished at " + str(datetime.now()),False)
     bot.append_message("Elapsed time: "+str(t_elapsed)) #message sent
     return 0
-generate_maps(2)
+
+'''
+Hi Martin, 
+
+You should generate the 10 x 10 degree LCDM maps from the power spectrum in advance and save them to disk (no string contribution), then read them in and add strings on the fly. 
+
+You probably only need 1000 or so, as for each LCDM map you might have 10 to 100 copies of these, each with a different string orientation. 
+
+Best regards,
+Adam 
+
+'''
+
+def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angular_size = 10,b_Verbose = False):
+    '''
+    Function to generate an LCDM map and split it up into 10°x10° patches, saving all of these to disk.
+    Generates one map and split it up into the maps.
+    
+    Arguments:
+        power_file: String: filename for the power to be used.
+        info_file: String: Standard = ""
+                            filename for the info file associated with the power file used.
+        T0:float: Standard = 2.725
+                            Background Temperature of the Universe, to normalize the dT/T map
+        num_map:int: Standard = 0:
+                            maps are saved to a file with moniker _(num_map)_(num_patch)
+        angular_size: int: Standard = 10:
+                            The size the map is split up into
+        b_Verbose: bool: Standard False:
+                            Whether or not to print out extra information
+    '''
+    if info_file is not "":
+        if b_Verbose:
+            read_info(info_file)
+    if type(angular_size) is not type(int):
+        angular_size = int(angular_size)
+    if type(num_map) is not type(int):
+        num_map = int(num_map)
+     #find filename for saving
+    img_name = gen_data_path+"maps/"
+    for c in power_file:
+        if c not in gen_data_path:
+            if c is ".":
+                break
+            else:
+                img_name = img_name + c
+    img_name = img_name + "_"+str(num_map)
+    TT_spectrum = load_spectra_from_file(power_file)
+    #TT spectrum works as intended
+    clm = sht.SHCoeffs.from_random(TT_spectrum,normalization = "ortho",csphase = -1)
+    gridfile_name = img_name + ".png"
+    grid = clm.expand() #T map
+    
+    grid = grid/T0
+    if b_Verbose:
+        print("max T: "+str(np.max(grid.data)))
+        print(type(grid))
+    grid.plot(fname = gridfile_name)
+    
+    num_plots_lat = int(180/angular_size)
+    num_plots_long = int(360/angular_size)
+    lat_range = int(grid.data.shape[1]/num_plots_lat)
+    long_range = int(grid.data.shape[0]/num_plots_long)
+    if b_Verbose:
+        print(num_plots_lat,num_plots_long,lat_range,long_range)
+    subplot = 0
+    
+    for a in range(1,num_plots_lat+1):
+        for b in range(1,num_plots_long+1):
+            #
+            #   NOTE: There is a bug with the software where A: sht implies N_lat %2 = 0 and N_long = N_lat or N_long = 2*Nlat
+            #   Including an overlapping region fixes this issue
+            #
+            subplot = subplot + 1
+            plt.close("All")
+            min_lat = (a-1)*lat_range
+            max_lat = (a*lat_range)+2   #Include overlapping region
+            range1 = np.array(range(min_lat,max_lat))
+            min_long = (b-1)*long_range
+            max_long = b*long_range+1   #include overlapping region
+            range2 = np.array(range(min_long,max_long))
+            if b_Verbose:
+                print("Latitude between ["+str(np.min(range1))+","+str(np.max(range1))+"]")
+                print("Longitude between ["+str(np.min(range2))+","+str(np.max(range2))+"]")
+            g1_ext = grid.data[range2]
+            #g1_ext.shape = (222,3998)
+            #need to extract out thecorrect longitude
+            g2 = []
+            for i in range(g1_ext.shape[0]):
+                g2.append(g1_ext[i][range1])
+                #now g2 includes all vecs in the proper range
+            g2 = np.array(g2)
+            if b_Verbose:
+                print("G2 shape: "+str(g2.shape))
+            g3 = sht.SHGrid.from_array(g2)
+            filename = img_name + "_"+str(subplot)+".png"
+            f,ax = g3.plot(fname = filename)
+            f.close()
+            plt.close("All")
+    
+generate_map_degrees(filename,b_Verbose = True)
