@@ -53,10 +53,9 @@ server = settings["Email"][2]
 
 bot = email_bot(settings["Email"][0],settings["Email"][1],server,password,username,int(settings["Email"][5]))
 
-
+'''
 
 def Plm_save(l,m,theta):
-    '''
     
     SCIPY IMPLEMENTATION
     
@@ -64,7 +63,8 @@ def Plm_save(l,m,theta):
     theta : Angles to compute the polynomials for
     l: degree of the polynomial
     m: order of the polynomial    
-    '''
+
+
     filename = "leg_l_"+str(l)+"_m_"+str(m)+".dat"
     cols = [str(m)]
     index = theta
@@ -124,9 +124,7 @@ def ylm_builtin(l,m,theta,phi):
     return df
 
 def ylm_load(l,m,theta,phi):
-    '''
-    Load the legendre values from file
-    '''
+
     prefac = np.sqrt((2*l+1)/2*factorial(l-m)/factorial(l+m))
     print(prefac)
     legend = Plm_save(l,m,theta)    #checks if file exists, generates and saves it if not.
@@ -143,7 +141,7 @@ def ylm_load(l,m,theta,phi):
     ind = theta
     df = pd.DataFrame(values,index = ind,columns = cols)
     return df
-'''
+
 phi = np.linspace(0,np.pi,3000)
 l = m = 85
 start_time_builtin = time.time()
@@ -160,14 +158,13 @@ print(type(data))
 print(data.shape)
 
 ylm = pd.DataFrame(func_base.sph_harm(l,m,theta,phi),index = theta, columns = [str(x) for x in phi])
-'''
 
 known_vals = []
 def check_finiteness(l,m,theta):
-    '''
+    
     Check the file for the Plm (l,m)
     if data is not finite everywhere, print l,m
-    '''
+    
     df = Plm_save(l,m,theta)
     known = False
     for colname in df:
@@ -179,7 +176,7 @@ def check_finiteness(l,m,theta):
                 known = True
                 known_vals.append((l,m))
                 print("==========================")
-'''
+
 ls = range(0,501)
 filenum = sum([2*l+1 for l in ls])
 i = 1
@@ -194,7 +191,7 @@ print("Found "+str(len(known_vals))+" values: ")
 for elem in known_vals:
     print(elem)
 np.savetxt(datapath_leg+"known_vals.txt",known_vals,delimiter = ",")
-'''
+
 
 
 def Plm_pyshtools_asDF(lmax, theta):
@@ -214,9 +211,9 @@ def Plm_pyshtools_asDF(lmax, theta):
     print(plm)
     print(plm.shape)
     return plm
-
+'''
 def load_spectra_from_file(filename,T0 = 2.725):
-    '''
+    ''' 
     Load a .dat file as a csv, delimiter = "    "
     '''
     df = pd.read_csv(filename,header = None, names = ["TT","EE","TE","UNKNOWN_1","UNKNOWN_2"], index_col = 0,delim_whitespace = True)
@@ -256,8 +253,6 @@ def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0):
     '''
      Generate a Temperature map using SHtools.
      Saves this map to a file, named the same as the original and info .png.
-     
- 
     '''
     #find filename for saving
     img_name = gen_data_path+"maps/"
@@ -293,21 +288,20 @@ def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0):
     print("Saving data to "+dat_img_bar)
     fig.savefig(dat_img_bar)
     
-    '''
+    
     grad_data = np.array(np.gradient(grid.data))[1]/T0
     grid2 = sht.SHGrid.from_array(grad_data) #dT/T map
     grad_img = img_name + file_ext_grad
     print("Saving gradient to "+grad_img)
     fig,ax = grid2.plot(fname = grad_img)
-    '''
-    '''
+
     #no normalization required at this point
     norm_img = img_name+ file_ext_norm
     print(norm_img)
     maxmin = (np.max(grid2.data)-np.min(grid2.data))
     grid2.data = (grid2.data - np.min(grid2.data))/maxmin
     fig,ax = grid2.plot(fname = norm_img)
-    '''
+    
     #apparently, grid turns into a tuple for some reason
     #Force grid to stay DHRealGrid
     return clm.expand()/T0
@@ -494,17 +488,22 @@ def generate_maps(num_files,num_file_start = 0,b_hasStrings = True,f_stringPerce
     bot.append_message("Elapsed time: "+str(t_elapsed)) #message sent
     return 0
 
-'''
-Hi Martin, 
-
-You should generate the 10 x 10 degree LCDM maps from the power spectrum in advance and save them to disk (no string contribution), then read them in and add strings on the fly. 
-
-You probably only need 1000 or so, as for each LCDM map you might have 10 to 100 copies of these, each with a different string orientation. 
-
-Best regards,
-Adam 
-
-'''
+def find_map_id(tw,pw,ang_size,max_angle = 360):
+    '''
+    Given an array of all maps of a given realization, return the id in the vector for the map in which a certain theta,phi lies
+    
+    '''
+    num_maps_line = max_angle/ang_size
+    idx = 0
+    horizontal_part = tw/ang_size - (tw%ang_size)/ang_size
+    pws = 90-pw
+    vertical = pws/ang_size - (pws%ang_size)/ang_size
+    
+    print("vertical: "+str(vertical))
+    print("horizontal: "+str(horizontal_part))
+    idx = horizontal_part + vertical*num_maps_line
+    print("Index: "+str(idx))
+    return int(idx)
 
 def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angular_size = 10,b_Verbose = False):
     '''
@@ -555,8 +554,8 @@ def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angula
         print(type(grid))
     f0,ax0 = grid.plot(fname = gridfile_name)
     plt.close(f0)
-    num_plots_lat = int(180/angular_size)
-    num_plots_long = int(360/angular_size)
+    num_plots_lat = int(360/angular_size)
+    num_plots_long = num_plots_lat#int(360/angular_size)
     lat_range = int(grid.data.shape[1]/num_plots_lat)
     long_range = int(grid.data.shape[0]/num_plots_long)
     if b_Verbose:
@@ -573,7 +572,7 @@ def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angula
             subplot = subplot + 1
             plt.close("All")
             min_lat = (a-1)*lat_range
-            max_lat = (a*lat_range)+2   #Include overlapping region
+            max_lat = (a*lat_range)+1   #Include overlapping region
             range1 = np.array(range(min_lat,max_lat))
             min_long = (b-1)*long_range
             max_long = b*long_range+1   #include overlapping region
@@ -595,7 +594,15 @@ def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angula
             filename = img_name + "_"+str(subplot)+".png"
             if b_Verbose:
                 print("Plot to be saved to "+filename)
-            f,ax = g3.plot(fname = filename)
+            #f,ax = g3.plot()
+            #todo: implement colorbar etc
+            
+             
+            f,ax = plt.subplots()
+            cax = ax.imshow(g3.data)
+            f.colorbar(cax)
+            
+            f.savefig(filename)
             plt.close(f)
             plt.close("All")
             all_maps.append(g3)
@@ -605,5 +612,91 @@ def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angula
     pickle.dump(all_maps,f)
     return all_maps
     
-am = generate_map_degrees(filename,b_Verbose = True)
+#am = generate_map_degrees(filename,num_map = 2,b_Verbose = True)
 #save am to file
+
+def get_sub_maps(am,tws,pws,ang_res):
+    '''
+    Return the array of maps  with certain angles
+    
+    tws,pws: array of ints or ints
+    am: array of all maps
+    ang_res: angular resolution of maps
+    '''
+    arr = []
+    print(type(tws))
+    print(type(pws))
+    if type(tws) != type(np.linspace(0,1)):
+        if type(pws) != type(np.linspace(0,1)):
+            #only one value
+            
+            return np.array([am[find_map_id(tws,pws,ang_res)]])
+        else:
+            for pw in pws:
+                arr.append(am[find_map_id(tws,pw,ang_res)])
+    if type(pws) != type(np.linspace(0,1)):
+        #tws is an array, pws is only one value
+        if type(pws) == int:
+            for tw in tws:
+                arr.append(am[find_map_id(tw,pws,ang_res)])
+        else:
+            print("pws must be either an int or an array of ints!")
+            return np.array([])
+    elif type(pws) == type(np.linspace(0,1)) and type(tws) == type(np.linspace(0,1)):
+        for pw in pws:
+            for tw in tws:
+                arr.append(am[find_map_id(tw,pw,ang_res)])
+    return np.array(arr)
+#pull out maps on 
+#works: sub_maps = get_sub_maps(am,np.linspace(0,350,10),0,10)
+
+def generate_multimap_subset(pfile,ifile,map_ids,T0 = 2.725,angular_size = 10,b_Verbose = False,pws = 0,tws = np.linspace(0,350,20)):
+    '''
+    Generate a set of subset of maps with given angular data.
+    Automatically assume equator
+    map_ids = array of ids for the map generator
+    '''
+    pid = os.getpid()
+    psu = psutil.Process(pid)
+    arr = []
+    originals = []
+    for idx in map_ids:
+        ami = generate_map_degrees(pfile,ifile,T0,idx,angular_size,b_Verbose)
+        originals.append(ami[0])
+        sub = get_sub_maps(ami,tws,pws,angular_size)
+        arr.append(sub)
+        error_counter = 0
+        if (psutil.cpu_percent()) > 95:
+            bot.set_topic("Error occured")
+            bot.append_message("["+str(datetime.now())+"]: "+"Too high cpu usage repeatedly at idx =" + str(idx),False)
+            print("["+str(datetime.now())+"]: "+"Too high cpu usage repeatedly at idx =" + str(idx))
+            error_counter = error_counter+1
+        if (psu.memory_info()[0]/2**30)*100/16 > 95:
+            #Ram keeps going up steadily, but slowly. Stop now.
+            bot.set_topic("Error occured")
+            bot.append_message("["+str(datetime.now())+"]: "+"Too much ram space used at idx =" + str(idx),False)
+            print("["+str(datetime.now())+"]: "+"Too much ram space used at idx =" + str(idx))
+            error_counter = error_counter+1
+        if psutil.disk_usage(gen_data_path)[3] > 98:
+            #no more disk space for next file: Stop calculation.
+            bot.set_topic("Error occured")
+            bot.append_message("["+str(datetime.now())+"]: "+"Too much harddrive space used at idx =" + str(idx))
+            print("["+str(datetime.now())+"]: "+"Too much harddrive space used at idx =" + str(idx))
+            return 0
+        if error_counter > 3:
+            bot.set_topic("Errors occured")
+            bot.append_message("["+str(datetime.now())+"]: "+"Closing Program early at idx = "+str(idx))
+            return 0
+    return np.array(originals),np.array(arr)
+t_start = datetime.now()
+origs,arr = generate_multimap_subset(filename,"",range(3,1000),b_Verbose = True)
+with open("origins.dat","wb") as f1:
+    pickle.dump(origs,f1)
+with open("arr.dat","wb") as f2:
+    pickle.dump(arr,f2)
+bot.set_topic("Starting Program")
+bot.append_message("["+str(datetime.now())+"]: "+"Starting Program")
+t_elapsed = datetime.now() - t_start
+print("Elapsed time = "+str(t_elapsed))
+bot.set_topic("Program finished")
+bot.append_message("["+str(datetime.now())+"]: "+"Closing Program")
