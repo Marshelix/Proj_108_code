@@ -224,7 +224,7 @@ def load_spectra_from_file(filename,T0 = 2.725):
     multiply 1 by 2pi/(T0^2*(l(l+1)(2l+1))
     '''
     l = df.index
-    premul = T0**-2*2*np.pi/(l*(l+1))#*(2*l+1)) #keep the 2l+1 factor out to test
+    premul = T0**-2*2*np.pi#/(l*(l+1))#*(2*l+1)) #keep the 2l+1 factor out to test
     '''
     print(type(premul))
     print(len(premul))
@@ -288,7 +288,7 @@ def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0):
     print("Saving data to "+dat_img_bar)
     fig.savefig(dat_img_bar)
     
-    
+    '''
     grad_data = np.array(np.gradient(grid.data))[1]/T0
     grid2 = sht.SHGrid.from_array(grad_data) #dT/T map
     grad_img = img_name + file_ext_grad
@@ -301,7 +301,7 @@ def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0):
     maxmin = (np.max(grid2.data)-np.min(grid2.data))
     grid2.data = (grid2.data - np.min(grid2.data))/maxmin
     fig,ax = grid2.plot(fname = norm_img)
-    
+    '''
     #apparently, grid turns into a tuple for some reason
     #Force grid to stay DHRealGrid
     return clm.expand()/T0
@@ -323,11 +323,17 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0):
     '''
     amp = 0
     if A != 0:
+        print(type(A))
+        print(A)
         amp = 8*np.pi*A
     else:
+        print(type(v))
+        print(v)
+        print(type(G_mu))
+        print(G_mu)
         amp = 8*np.pi*v*G_mu
-    if A != G_mu*v:
-        v = A/G_mu#force velocity to fit for now
+    #if A != G_mu*v:
+    #    v = A/G_mu#force velocity to fit for now
     grid_dim = grid.data.shape
     xmax = grid_dim[0]
     ymax = grid_dim[1]
@@ -689,14 +695,42 @@ def generate_multimap_subset(pfile,ifile,map_ids,T0 = 2.725,angular_size = 10,b_
             return 0
     return np.array(originals),np.array(arr)
 t_start = datetime.now()
-origs,arr = generate_multimap_subset(filename,"",range(3,1000),b_Verbose = True)
-with open("origins.dat","wb") as f1:
-    pickle.dump(origs,f1)
-with open("arr.dat","wb") as f2:
-    pickle.dump(arr,f2)
+plt.close("all")
+v = 0.5
+G_mu = 10**-1
+A = v*G_mu
+
+tgname = "tgrid.png"
+sname = "sgrid.png"
+test_map = gen_map(filename,info_name)
+submap_arr_slice = test_map.data[1750:2250]
+submap_arr = []
+for vi in submap_arr_slice:
+    arr = []
+    for i in range(500):
+        arr.append(vi[i])
+    arr = np.array(arr)
+    submap_arr.append(arr)
+submap_arr = np.array(submap_arr)
+print(submap_arr.shape)
+submap = sht.SHGrid.from_array(submap_arr)
+submap.plot()
+plt.title("Submap")
+
+smap = add_strings(submap,G_mu,v,1,tgname,sname,A)
+
+
+'''
+
+#origs,arr = generate_multimap_subset(filename,"",range(3,20),b_Verbose = True)
+#with open("origins.dat","wb") as f1:
+#    pickle.dump(origs,f1)
+#with open("arr.dat","wb") as f2:
+#    pickle.dump(arr,f2)
 bot.set_topic("Starting Program")
 bot.append_message("["+str(datetime.now())+"]: "+"Starting Program")
 t_elapsed = datetime.now() - t_start
 print("Elapsed time = "+str(t_elapsed))
 bot.set_topic("Program finished")
 bot.append_message("["+str(datetime.now())+"]: "+"Closing Program")
+'''
