@@ -1,0 +1,30 @@
+Tutorial for setup.py:
+
+Setup.py generates a settings datafile to be used for Project 108.
+It works by employing a pandas dataframe, with the columns being the part of the project and the index being the line to use.
+It has the following format:
+	Email	Spherharg				NN
+0 Sender    l0						unused so far
+1 Addressee l1
+2 URL:Port  Harmonics folder
+3 password  Legendre folder
+4 Login Acc Data folder
+5 Timelimit unused
+6 unused    unused
+
+Herein, the Sender, Addresse and Login ACC for Email are the respective email addresses to log into an online email account.
+The Timelimit is the time the program waits after sending a mail to send another one.
+
+l0,l1 are parameters for the original Spherical harmonics generator. Currently, this is unused.
+The Harmonics folder is the folder where the beforementioned harmonics would be saved to. This is currently unused.
+The Legendre folder "    "  "      "      "          "       legendre function " " " ". This is currently unused
+The data folder holds both the maps folder(which includes the saved maps and the images saved for checking), as well as the power file from Lambda.
+
+Effectively, as long as you dont want to use the email part, you only need to set the location of Spherharg 4, the data folder.
+The tool employs a cmd style structure, and allows the following commands:
+
+set: usage: set column index value
+read: usage: read column index 0 or read all 0 0
+quit: usage: quit
+save: usage: save 0 0 0 or save
+

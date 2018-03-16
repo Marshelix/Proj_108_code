@@ -27,7 +27,7 @@ def load_settings():
         return create_settings()
     else:
         if os.path.getsize(os.path.dirname(__file__)+'/'+filename) > 0:
-            print("Loading from file.")
+            print("Loading Settings from file.")
             file = open(os.path.dirname(__file__)+'/'+filename,"rb")
             settings = pickle.load(file)
             file.close()
