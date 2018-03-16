@@ -41,7 +41,7 @@ import pyshtools as sht # Spherical Harmonics tools
 start_time = time.time()
 
 settings = setup.load_settings()
-print(settings)
+#print(settings)
 datapath = settings["Spherharg"][2]  #spherical harmonics data
 datapath_leg = settings["Spherharg"][3]
 
@@ -89,7 +89,7 @@ def Plm_save(l,m,theta):
         print("File generation took : "+repr(file_time_elapsed))
     else:
          if os.path.getsize(datapath_leg+filename) > 0:
-            print("Loading from file.")
+            print("Loading map from file.")
             file = open(datapath_leg+filename,"rb")
             df2 = pickle.load(file)
             file.close()
@@ -223,8 +223,8 @@ def load_spectra_from_file(filename,T0 = 2.725):
     want Cl/(2l+1)
     multiply 1 by 2pi/(T0^2*(l(l+1)(2l+1))
     '''
-    l = df.index
-    premul = T0**-2*2*np.pi#/(l*(l+1))#*(2*l+1)) #keep the 2l+1 factor out to test
+    l = np.array(df.index)
+    premul = 10**-12/(l*(l+1))#1#T0**-2*2*np.pi
     '''
     print(type(premul))
     print(len(premul))
@@ -232,6 +232,7 @@ def load_spectra_from_file(filename,T0 = 2.725):
     print(premul)
     print(df.head())
     '''
+
     return df["TT"]*premul
 gen_data_path = settings["Spherharg"][4]
 filename = gen_data_path+"camb_74022160_scalcls.dat"
@@ -323,17 +324,11 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0):
     '''
     amp = 0
     if A != 0:
-        print(type(A))
-        print(A)
         amp = 8*np.pi*A
     else:
-        print(type(v))
-        print(v)
-        print(type(G_mu))
-        print(G_mu)
         amp = 8*np.pi*v*G_mu
-    #if A != G_mu*v:
-    #    v = A/G_mu#force velocity to fit for now
+    if A != G_mu*v:
+        v = A/G_mu#force velocity to fit for now
     grid_dim = grid.data.shape
     xmax = grid_dim[0]
     ymax = grid_dim[1]
@@ -397,6 +392,10 @@ print("T_Max in original map: "+str(np.max(g1.data)/2.725))
 '''
 def generate_maps(num_files,num_file_start = 0,b_hasStrings = True,f_stringPercentage = 0.7,f_T0 = 2.725,s_pfilename = filename,s_infofilename = info_name,b_verbose = False):
     '''
+    
+    NOT IN USE
+    
+    
         Generate n maps, save them to a file labelled based on its own name and the number of files already put in.
         Arguments:
             num_files: Integer: forced: Number of maps you want to generate.
@@ -496,6 +495,9 @@ def generate_maps(num_files,num_file_start = 0,b_hasStrings = True,f_stringPerce
 
 def find_map_id(tw,pw,ang_size,max_angle = 360):
     '''
+    
+    NOT IN USE
+    
     Given an array of all maps of a given realization, return the id in the vector for the map in which a certain theta,phi lies
     
     '''
@@ -513,6 +515,10 @@ def find_map_id(tw,pw,ang_size,max_angle = 360):
 
 def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angular_size = 10,b_Verbose = False):
     '''
+    
+    Can read out the 10x10 map more or less, slightly buggy, not in use for this reason.
+    
+    
     Function to generate an LCDM map and split it up into 10°x10° patches, saving all of these to disk.
     Generates one map and split it up into the maps.
     
@@ -578,7 +584,7 @@ def generate_map_degrees(power_file,info_file = "",T0 = 2.725,num_map = 0,angula
             subplot = subplot + 1
             plt.close("All")
             min_lat = (a-1)*lat_range
-            max_lat = (a*lat_range)+1   #Include overlapping region
+            max_lat = (a*lat_range) +1   #Include overlapping region
             range1 = np.array(range(min_lat,max_lat))
             min_long = (b-1)*long_range
             max_long = b*long_range+1   #include overlapping region
@@ -628,6 +634,8 @@ def get_sub_maps(am,tws,pws,ang_res):
     tws,pws: array of ints or ints
     am: array of all maps
     ang_res: angular resolution of maps
+    
+    NOT IN USE
     '''
     arr = []
     print(type(tws))
@@ -661,6 +669,8 @@ def generate_multimap_subset(pfile,ifile,map_ids,T0 = 2.725,angular_size = 10,b_
     Generate a set of subset of maps with given angular data.
     Automatically assume equator
     map_ids = array of ids for the map generator
+    
+    GENERATES TOO MUCH DATA =========== IGNORE
     '''
     pid = os.getpid()
     psu = psutil.Process(pid)
@@ -696,8 +706,9 @@ def generate_multimap_subset(pfile,ifile,map_ids,T0 = 2.725,angular_size = 10,b_
     return np.array(originals),np.array(arr)
 t_start = datetime.now()
 plt.close("all")
+'''
 v = 0.5
-G_mu = 10**-1
+G_mu = 10**-6
 A = v*G_mu
 
 tgname = "tgrid.png"
@@ -712,14 +723,112 @@ for vi in submap_arr_slice:
     arr = np.array(arr)
     submap_arr.append(arr)
 submap_arr = np.array(submap_arr)
+print("submap min,max: ("+str(np.min(submap_arr))+","+str(np.max(submap_arr))+")")
 print(submap_arr.shape)
 submap = sht.SHGrid.from_array(submap_arr)
 submap.plot()
-plt.title("Submap")
+plt.title("min,max: ("+str(np.min(submap_arr))+","+str(np.max(submap_arr))+")")
 
-smap = add_strings(submap,G_mu,v,1,tgname,sname,A)
+sm,tg = add_strings(submap,G_mu,v,1,tgname,sname,A)
+print("Sm min,max: ("+str(np.min(sm.data))+","+str(np.max(sm.data))+")")
+print("Tg min,max: ("+str(np.min(tg.data))+","+str(np.max(tg.data))+")")
 
-
+print(np.min(submap_arr)-np.min(tg.data),np.max(submap_arr)-np.max(tg.data))
+'''
+def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose = True,n_min = 0,save_freq = 10):
+    '''
+    Generate multiple maps, save them to a file
+    
+    CURRENT MAP GENERATION PROCESS
+    '''
+    A = G_mu*v
+    if b_Verbose:
+        print("#maps= "+str(n_maps))
+        print("Filename = "+str(filename))
+        print("Info file = "+ str(info_name))
+        print("G_mu = "+str(G_mu))
+        print("V = "+str(v))
+    if n_maps < 0:
+        print("n_maps < 0. Inverting")
+        n_maps = abs(n_maps)
+    sub_maps = []
+    
+    full_maps = []
+    string_maps = []
+    total_maps = []
+    old_save = n_min
+    for i in range(n_min,n_min + n_maps):
+        cur_map_full = gen_map(filename,info_name,2.725,i)
+        full_maps.append(cur_map_full)
+        submap_arr_slice = cur_map_full.data[1888:2112]
+        submap_arr = []
+        for vi in submap_arr_slice:
+            arr = []
+            for k in range(224):
+                arr.append(vi[k])
+            arr = np.array(arr)
+            submap_arr.append(arr)
+        #generate tgname, sname
+        img_name = gen_data_path+"maps/"
+        for c in filename:
+            if c not in gen_data_path:
+                if c is ".":
+                    break
+                else:
+                    img_name = img_name + c
+        img_name = img_name + "_"+str(i)
+        tgname = img_name + "_grid.png"
+        sname = img_name + "_strings.png"
+        print("Tgname = "+tgname)
+        print("Sname = "+sname)
+        submap_arr = np.array(submap_arr)
+        print("submap min,max: ("+str(np.min(submap_arr))+","+str(np.max(submap_arr))+")")
+        print(submap_arr.shape)
+        submap = sht.SHGrid.from_array(submap_arr)
+        submap.plot()
+        sub_maps.append(submap)
+        plt.title("min,max: ("+str(np.min(submap_arr))+","+str(np.max(submap_arr))+")")
+        dat_img = img_name + "_grid_bar.png"
+        fig,ax = plt.subplots()
+        cax = ax.imshow(submap.data)
+        fig.colorbar(cax)
+        ax.set_title("T_max = "+str(np.max(submap.data)))
+        print("Saving data to "+dat_img)
+        
+        fig.savefig(dat_img)
+        sm,tg = add_strings(submap,G_mu,v,1,tgname,sname,A)
+        print("Sm min,max: ("+str(np.min(sm.data))+","+str(np.max(sm.data))+")")
+        print("Tg min,max: ("+str(np.min(tg.data))+","+str(np.max(tg.data))+")")
+        string_maps.append(sm)
+        total_maps.append(tg)
+        print(np.min(submap_arr)-np.min(tg.data),np.max(submap_arr)-np.max(tg.data))
+        plt.close("all")
+        
+        #save if save_freq reached
+        if i % save_freq == 0:
+            print("Saving to files.")
+            tmname = img_name +"__"+str(old_save)+"_"+str(i)+ "_tmaps.dat"
+            smfname = img_name+"__"+str(old_save)+"_"+str(i)+"_smaps.dat"
+            fmname = img_name +"__"+str(old_save)+"_"+str(i)+ "_fmaps.dat"
+            sbname = img_name +"__"+str(old_save)+"_"+str(i)+"_sub.dat"
+            print(tmname,smfname,fmname,sbname)
+            with open(tmname,"wb") as f:
+                pickle.dump(np.array(total_maps),f)
+            with open(smfname,"wb") as f:
+                pickle.dump(np.array(string_maps),f)
+            with open(fmname,"wb") as f:
+                pickle.dump(np.array(full_maps),f)
+            with open(sbname,"wb") as f:
+                pickle.dump(np.array(sub_maps),f)
+            total_maps = []
+            
+            string_maps = []
+            full_maps = []
+            sub_maps = []
+            old_save = i
+            
+    return np.array(total_maps),np.array(string_maps),np.array(full_maps),np.array(sub_maps)
+gen_multiple_maps(5,filename,info_name,n_min = 40)
 '''
 
 #origs,arr = generate_multimap_subset(filename,"",range(3,20),b_Verbose = True)
