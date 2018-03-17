@@ -831,7 +831,10 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
             old_save = i
             
     return np.array(total_maps),np.array(string_maps),np.array(full_maps),np.array(sub_maps)
-gen_multiple_maps(20,filename,info_name,n_min = 0)
+gen_multiple_maps(1000,filename,info_name,n_min = 40)
+t_elapsed = datetime.now() - t_start
+print("Elapsed time = "+str(t_elapsed))
+
 '''
 
 #origs,arr = generate_multimap_subset(filename,"",range(3,20),b_Verbose = True)
