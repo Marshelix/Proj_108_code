@@ -376,12 +376,18 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0):
         
             
     new_map = sht.SHGrid.from_array(new_grid_data)
-    f,ax = new_map.plot(fname = sname)
+    if sname is not None:
+        f,ax = new_map.plot(fname = sname)
+    else:
+        f,ax = new_map.plot()
     ax.set_title("New map G_mu = "+str(G_mu)+",A = "+str(A))
     total_grid_data = new_grid_data + grid.data
     total_grid = sht.SHGrid.from_array(total_grid_data)
     print("TG Data size: "+str(total_grid_data.shape))
-    f2,ax2 = total_grid.plot(fname = tgname)
+    if tgname is not None:
+        f2,ax2 = total_grid.plot(fname = tgname)
+    else:
+        f2,ax2 = total_grid.plot()
     ax2.set_title("Total map - T_Min = "+str(np.min(total_grid.data))+" - T_Max = "+str(np.max(total_grid.data)))
     return new_map,total_grid
 
