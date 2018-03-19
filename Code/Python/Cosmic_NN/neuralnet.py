@@ -2,7 +2,7 @@
 """
 Created on Sun Mar 18 01:38:30 2018
 
-@author: marti
+@author: martin
 """
 
 import torch
@@ -38,9 +38,9 @@ class network(nn.Module):
         self.con1 = nn.Conv2d(batch_size,h1_size,input_size)
         self.pool1 = nn.MaxPool2d(2,2)
         self.con2 = nn.Conv2d(batch_size,h2_size,h1_size)
-        self.pool2 = nn.maxPool2d(2,2)
-        self.l1 = nn.linear(h2_size,h3_size)
-        self.l2 = nn.linear(h3_size,output_size)
+        self.pool2 = nn.MaxPool2d(2,2)
+        self.l1 = nn.Linear(h2_size,h3_size)
+        self.l2 = nn.Linear(h3_size,output_size)
         
     def forward(self,x):
         x = self.con1(x)
@@ -75,3 +75,5 @@ if __name__ == "__main__":
     #torch setup
     use_cuda = torch.cuda.is_available()
     print("Using CUDA: "+str(use_cuda))
+    
+    

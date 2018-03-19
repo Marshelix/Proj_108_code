@@ -148,7 +148,7 @@ def dataarr_to_tensor_stack(data,b_Verbose = False):
     
 if __name__ == "__main__":
     t_start = datetime.now()
-    data = load_data(load_filenames(datapath,"sub"),True)
+    data = load_data(load_filenames(datapath,"sub"))
     print(len(data))
     
     norm_dat = normalize_data(data)
