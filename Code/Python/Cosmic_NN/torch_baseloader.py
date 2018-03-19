@@ -15,6 +15,8 @@ import numpy as np
 mailpath = os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/py_mail"))
 sys.path.append(mailpath)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/Setup")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/spherical_harmonics_generator")))
+from spher_harmonics_funcs import add_strings
 from mailbot import email_bot
 from Setup import setup
 import pickle
@@ -127,10 +129,11 @@ def dataarr_to_tensor_stack(data,b_Verbose = False):
     Converts an array of data into a pytorch stack
     '''
     t_start = datetime.now()
+    use_cuda = torch.cuda.is_available()    #just in case
     #transfer to torch array
     t_arr = []
     i = 1
-    for elem in norm_dat:
+    for elem in data:
         e1 = Variable(torch.from_numpy(elem.data)).cuda() if use_cuda else Variable(torch.from_numpy(elem.data)) 
         t_arr.append(e1)
         if b_Verbose:        
@@ -138,17 +141,39 @@ def dataarr_to_tensor_stack(data,b_Verbose = False):
             i = i+1
     if b_Verbose:
         print("Converting to np array")
-    t_arr = torch.stack(t_arr).cuda()
+    t_arr = torch.stack(t_arr).cuda() if use_cuda else torch.stack(t_arr)
     if b_Verbose:
         print("Elements appended")
     t_elapsed = datetime.now() - t_start
     
     print("Elapsed time on conversion: "+str(t_elapsed))
     return t_arr
+
+def create_string_maps(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose = False):
+    '''
+    Creates an array of map representations with strings implanted. 
+    Since these are all saved in memory, it is importent to recognize how many representations we can do safely.
+    For 10gb assigned, we have ~25 reps. For 25gb available, we have ~60 reps.
+    
+    '''
+    arr = []
+    if b_Verbose:
+        print("#maps = "+str(num_smaps_per_map))
+        print("G_mu = "+str(G_mu))
+        print("v = "+str(V))
+        print("Amplitude = "+str(Amp))
+    for cur_map in base_maps:
+        for i in range(num_smaps_per_map):
+            _,smap = add_strings(cur_map,G_mu,V,1,None,None,Amp) #string map that is not saved to file
+            arr.append(smap)
+    arr = np.array(arr)
+    if b_Verbose:
+        print("Amount of maps in array: "+str(len(arr)))
+    return dataarr_to_tensor_stack(arr,b_Verbose)
     
 if __name__ == "__main__":
     t_start = datetime.now()
-    data = load_data(load_filenames(datapath,"sub"),True)
+    data = load_data(load_filenames(datapath,"sub"))
     print(len(data))
     
     norm_dat = normalize_data(data)
