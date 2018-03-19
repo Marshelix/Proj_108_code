@@ -250,7 +250,7 @@ def read_info(info_name):
 
 num_maps = 0
 
-def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0):
+def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0,mode = "DH2"):
     '''
      Generate a Temperature map using SHtools.
      Saves this map to a file, named the same as the original and info .png.
@@ -273,16 +273,18 @@ def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0):
     #TT spectrum works as intended
     clm = sht.SHCoeffs.from_random(TT_spectrum,normalization = "ortho",csphase = -1)
      
-    grid = clm.expand() #T map
-    
+    grid = clm.expand(grid = mode) #T map
+    cur_map = grid.to_array()
+
+    cur_map = cur_map/T0
     grid = grid/T0
-    print("max T: "+str(np.max(grid.data)))
+    print("max T: "+str(np.max(cur_map)))
     
     dat_img = img_name + file_ext_dat
     dat_img_bar = img_name + file_ext_dat_bar
     
     fig,ax = plt.subplots()
-    cax = ax.imshow(grid.data)
+    cax = ax.imshow(cur_map)
     fig.colorbar(cax)
     grid.plot(fname = dat_img)
     ax.set_title("T_max = "+str(np.max(grid.data)))
@@ -305,7 +307,8 @@ def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0):
     '''
     #apparently, grid turns into a tuple for some reason
     #Force grid to stay DHRealGrid
-    return clm.expand()/T0
+    return sht.SHGrid.from_array(cur_map)
+
 
 
 def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0):
@@ -757,14 +760,14 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
     string_maps = []
     total_maps = []
     old_save = n_min
-    for i in range(n_min,n_min + n_maps):
+    for i in range(n_min,n_min + n_maps+1):
         cur_map_full = gen_map(filename,info_name,2.725,i)
         full_maps.append(cur_map_full)
-        submap_arr_slice = cur_map_full.data[1888:2112]
+        submap_arr_slice = cur_map_full.data[1889:2111] #10 degrees: total sidewidth: 222
         submap_arr = []
         for vi in submap_arr_slice:
             arr = []
-            for k in range(224):
+            for k in range(submap_arr_slice.shape[0]):
                 arr.append(vi[k])
             arr = np.array(arr)
             submap_arr.append(arr)
@@ -805,7 +808,7 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
         plt.close("all")
         
         #save if save_freq reached
-        if i % save_freq == 0:
+        if (i-old_save) % save_freq == 0:
             print("Saving to files.")
             tmname = img_name +"__"+str(old_save)+"_"+str(i)+ "_tmaps.dat"
             smfname = img_name+"__"+str(old_save)+"_"+str(i)+"_smaps.dat"
@@ -828,7 +831,10 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
             old_save = i
             
     return np.array(total_maps),np.array(string_maps),np.array(full_maps),np.array(sub_maps)
-gen_multiple_maps(5,filename,info_name,n_min = 40)
+gen_multiple_maps(1000,filename,info_name,n_min = 40)
+t_elapsed = datetime.now() - t_start
+print("Elapsed time = "+str(t_elapsed))
+
 '''
 
 #origs,arr = generate_multimap_subset(filename,"",range(3,20),b_Verbose = True)

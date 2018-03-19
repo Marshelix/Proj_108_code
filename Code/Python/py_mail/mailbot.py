@@ -48,6 +48,7 @@ class email_bot:
 
         self.topic = ""
         self.mintime_passed = min_time
+        print("Email bot activated.")
     def set_topic(self,t):
         self.topic = t
    
