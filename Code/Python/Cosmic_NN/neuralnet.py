@@ -53,7 +53,7 @@ class network(nn.Module):
         x = self.con2(F.relu(x))
         x = self.pool2(F.relu(x))
         x = self.l1(F.relu(x))
-        x = self.l2(F.relu(x))
+        x = self.l2(F.softmax(x))
         return x
 
 
