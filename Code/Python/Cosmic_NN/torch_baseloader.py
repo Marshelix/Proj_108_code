@@ -33,7 +33,7 @@ if __name__ == "__main__":
         datapath = settings["Spherharg"][4]
     elif cur_os == "Linux":
         datapath = settings["Spherharg"][5]
-    datapath = datapath + "map_data\\"
+    datapath = datapath #+ "map_data\\"
     print("Using "+datapath+" as file path")
     #set up mailbot
     username = settings["Email"][4]
@@ -63,7 +63,7 @@ def load_filenames(path, specifier = None,b_Verbose = False):
     else:
         if b_Verbose:
             print(os.listdir(path))
-        return path + os.listdir(path)
+        return [path + x for x in os.listdir(path)]
 
 def load_data(filenames,b_Verbose = False):
     '''
@@ -83,7 +83,7 @@ def load_data(filenames,b_Verbose = False):
             print(name + " closed.")
     
     return np.array(total_arr)
-def normalize_data(data,normalization = "1-1",b_Verbose = False):
+def normalize_data(data,normalization = "1-0",b_Verbose = False):
     '''
     Normalizes a set of data based on a type of normalization, either:
         data = np.array of data to normalize
@@ -137,7 +137,7 @@ def dataarr_to_tensor_stack(data,b_Verbose = False):
         e1 = Variable(torch.from_numpy(elem.data)).cuda() if use_cuda else Variable(torch.from_numpy(elem.data)) 
         t_arr.append(e1)
         if b_Verbose:        
-            print("Elem appended - "+str(100*(i/len(norm_dat)))+"% completed - iteration #"+str(i))
+            print("Elem appended - "+str(100*(i/len(data)))+"% completed - iteration #"+str(i))
             i = i+1
     if b_Verbose:
         print("Converting to np array")
@@ -170,6 +170,89 @@ def create_string_maps(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose = False)
     if b_Verbose:
         print("Amount of maps in array: "+str(len(arr)))
     return dataarr_to_tensor_stack(arr,b_Verbose)
+
+def create_map_stack(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 0.5,b_Verbose = False):
+    '''
+    Creates 2 stacks, one with strings and one without. Takes the 
+    '''
+    np.random.shuffle(base_maps)    #array now shuffled
+    max_i = int(percentage_string* len(base_maps))-1
+    if b_Verbose:
+        print("Max_i = "+str(max_i))
+    string_maps = base_maps[0:max_i]
+    staying_maps = base_maps[max_i:]
+    string_maps = create_string_maps(string_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose)
+    staying_maps = dataarr_to_tensor_stack(staying_maps,b_Verbose)
+    #join stacks
+    return torch.cat((staying_maps,string_maps))
+    
+def create_string_maps_arr(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose = False):
+    '''
+    Creates an array of map representations with strings implanted. 
+    Since these are all saved in memory, it is importent to recognize how many representations we can do safely.
+    For 10gb assigned, we have ~25 reps. For 25gb available, we have ~60 reps.
+    
+    '''
+    arr = []
+    if b_Verbose:
+        print("#maps = "+str(num_smaps_per_map))
+        print("G_mu = "+str(G_mu))
+        print("v = "+str(V))
+        print("Amplitude = "+str(Amp))
+    for cur_map in base_maps:
+        for i in range(num_smaps_per_map):
+            _,smap = add_strings(cur_map,G_mu,V,1,None,None,Amp) #string map that is not saved to file
+            arr.append((smap,1))
+    arr = np.array(arr)
+    if b_Verbose:
+        print("Amount of maps in array: "+str(len(arr)))
+    return arr
+
+
+def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 0.5,b_Verbose = False):
+    '''
+    Creates 2 stacks, one with strings and one without. Takes the 
+    '''
+    np.random.shuffle(base_maps)    #array now shuffled
+    max_i = int(percentage_string* len(base_maps))-1
+    if b_Verbose:
+        print("Max_i = "+str(max_i))
+    string_maps = base_maps[0:max_i]
+    staying_maps = base_maps[max_i:]
+    string_maps = create_string_maps_arr(string_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose)
+    if b_Verbose:
+        print(type(staying_maps))
+        print(type(string_maps))
+    arr = []
+    for i_map in staying_maps:
+        arr.append((i_map,0))
+    #join stacks
+    for l in string_maps:
+        arr.append(l)
+    return arr
+def arr_to_batches(data,batchsize,b_Verbose = False):
+    '''
+    Turn vector into vector of vectors with batchsize
+    '''
+    
+    overflow = len(data)%batchsize
+    max_val = len(data)-overflow
+    num_batches = max_val/batchsize
+    if b_Verbose:
+        print("Off by "+str(overflow))
+        print("Maximum value = "+str(max_val))
+        print("Generating "+str(num_batches) +" batches.")
+    arr = []
+    for i in range(int(num_batches)):
+        low_lim = (i)*batchsize
+        up_lim = (i+1)*batchsize
+        arr.append(data[low_lim:up_lim])
+    if b_Verbose:
+        print("Generated "+str(len(arr)) +"batches.")
+        print("Fits with original estimate: "+str(len(arr)==num_batches))
+    return arr
+    
+    
     
 if __name__ == "__main__":
     t_start = datetime.now()
@@ -182,3 +265,4 @@ if __name__ == "__main__":
     
     print("Elapsed time one file loading: "+str(t_elapsed))
     dataarr_to_tensor_stack(norm_dat,False)
+    

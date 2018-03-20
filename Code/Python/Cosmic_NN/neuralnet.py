@@ -15,10 +15,11 @@ import sys
 import numpy as np
 sys.path.append(os.path.dirname(__file__))
 import torch_baseloader as bl
-mailpath = os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/py_mail"))
+mailpath = os.path.abspath("../py_mail")
 sys.path.append(mailpath)
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/Setup")))
+sys.path.append(os.path.abspath("../Setup"))
 from mailbot import email_bot
+
 from Setup import setup
 import pickle
 from datetime import datetime
@@ -26,6 +27,10 @@ import pyshtools as sht
 from dataloader import dataloader
 from torch import nn
 import torch.nn.functional as F
+
+
+classes = [0,1]
+
 
 class network(nn.Module):
     def __init__(self,batch_size, input_size,h1_size,h2_size,h3_size,output_size):
@@ -43,12 +48,12 @@ class network(nn.Module):
         self.l2 = nn.Linear(h3_size,output_size)
         
     def forward(self,x):
-        x = self.con1(x)
-        x = self.pool1(x)
+        x = self.con1(F.sigmoid(x))
+        x = self.pool1(F.relu(x))
         x = self.con2(F.relu(x))
-        x = self.pool2(x)
-        x = self.l1(x)
-        x = self.l2(x)
+        x = self.pool2(F.relu(x))
+        x = self.l1(F.relu(x))
+        x = self.l2(F.relu(x))
         return x
 
 
@@ -76,4 +81,21 @@ if __name__ == "__main__":
     use_cuda = torch.cuda.is_available()
     print("Using CUDA: "+str(use_cuda))
     
+    raw_data = bl.load_data(bl.load_filenames(datapath,"sub"))
+    raw_data = raw_data[:int(0.1*len(raw_data))]
+    print(len(raw_data))
+    norm_data = bl.normalize_data(raw_data,"0-1",False)
+    print(len(norm_data))
+    print("Raw Data loaded. Turning to batches")
+    batches = bl.arr_to_batches(norm_data,10,True)
     
+    smaps_per_maps = 1#settings["NN"][0]
+    G_mu = 10**-7
+    v = 1
+    A = G_mu*v
+    arr = []
+    for batch in batches:
+        stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,0.5,True)
+        arr.append(stack)
+        print(len(stack))
+    print(arr)

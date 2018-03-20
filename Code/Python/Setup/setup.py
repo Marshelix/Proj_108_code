@@ -26,9 +26,9 @@ def load_settings():
         print("Create settings")
         return create_settings()
     else:
-        if os.path.getsize(os.path.dirname(__file__)+'/'+filename) > 0:
+        if os.path.getsize(os.path.dirname("__file__")+'/'+filename) > 0:
             print("Loading Settings from file.")
-            file = open(os.path.dirname(__file__)+'/'+filename,"rb")
+            file = open(os.path.dirname("__file__")+'/'+filename,"rb")
             settings = pickle.load(file)
             file.close()
     
@@ -41,14 +41,14 @@ def create_settings():
     settings = pd.DataFrame(0,index = index,columns=col )
     
 
-    if not os.path.exists(os.path.dirname(__file__)+'/'+filename):
+    if not os.path.exists(os.path.dirname("__file__")+'/'+filename):
         print("Creating new file")
-        file = open(os.path.dirname(__file__)+'/'+filename,"wb")
+        file = open(os.path.dirname("__file__")+'/'+filename,"wb")
         file.close()
     else:
-        if os.path.getsize(os.path.dirname(__file__)+'/'+filename) > 0:
+        if os.path.getsize(os.path.dirname("__file__")+'/'+filename) > 0:
             print("Loading from file.")
-            file = open(os.path.dirname(__file__)+'/'+filename,"rb")
+            file = open(os.path.dirname("__file__")+'/'+filename,"rb")
             settings = pickle.load(file)
             file.close()
     
@@ -63,7 +63,7 @@ def create_settings():
         values = com.split(" ")
         if com == "save":
             print("Saving.")
-            file = open(os.path.dirname(__file__)+'/settings.dat',"wb")
+            file = open(os.path.dirname("__file__")+'/settings.dat',"wb")
             pickle.dump(settings,file)
             file.close()
             print("File saved")
@@ -89,7 +89,7 @@ def create_settings():
                         print(settings[desc][idx])
                 elif command == "save":
                     print("Saving.")
-                    file = open(os.path.dirname(__file__)+'/settings.dat',"wb")
+                    file = open(os.path.dirname("__file__")+'/settings.dat',"wb")
                     pickle.dump(settings,file)
                     file.close()
                     print("File saved")
