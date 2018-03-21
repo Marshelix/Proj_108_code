@@ -202,7 +202,10 @@ def create_string_maps_arr(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose = Fa
     for cur_map in base_maps:
         for i in range(num_smaps_per_map):
             _,smap = add_strings(cur_map,G_mu,V,1,None,None,Amp) #string map that is not saved to file
-            arr.append((smap,1))
+            val = (smap,1)
+            if b_Verbose:
+                print(type(val))
+            arr.append(val)
     arr = np.array(arr)
     if b_Verbose:
         print("Amount of maps in array: "+str(len(arr)))
@@ -227,14 +230,20 @@ def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 
     for i_map in staying_maps:
         arr.append((i_map,0))
     #join stacks
-    for l in string_maps:
-        arr.append(l)
+    if b_Verbose:
+        print("Appending String maps")
+    for arra in string_maps:
+        if b_Verbose:
+            print(len(arra))
+            print(type(arra))
+        arr.append((arra[0],arra[1]))
     return arr
 def arr_to_batches(data,batchsize,b_Verbose = False):
     '''
     Turn vector into vector of vectors with batchsize
     '''
-    
+    if len(data) <= batchsize:
+        return [data]
     overflow = len(data)%batchsize
     max_val = len(data)-overflow
     num_batches = max_val/batchsize

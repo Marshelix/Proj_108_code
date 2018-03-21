@@ -87,15 +87,49 @@ if __name__ == "__main__":
     norm_data = bl.normalize_data(raw_data,"0-1",False)
     print(len(norm_data))
     print("Raw Data loaded. Turning to batches")
-    batches = bl.arr_to_batches(norm_data,10,True)
+    batchsize = 10
+    batches = bl.arr_to_batches(norm_data,batchsize,False)
     
     smaps_per_maps = 1#settings["NN"][0]
     G_mu = 10**-7
     v = 1
     A = G_mu*v
     arr = []
+    sarr = []
+    percentage_with_strings = 0.5
     for batch in batches:
-        stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,0.5,True)
+        stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
         arr.append(stack)
-        print(len(stack))
-    print(arr)
+        
+    #got all batches set correctly
+    #this is now training data
+    
+    output_size = 2
+    input_size = 4
+    h1_size = 1
+    h2_size = 1
+    h3_size = 1
+    net = network(batchsize,input_size,h1_size,h2_size,h3_size,output_size)
+    import torch.optim as optim
+    crit = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(),lr = 0.0001,momentum = 0.9)
+    print("Network and optimizers created")
+    epochs = 10
+    for epoch in range(epochs):
+        running_loss = 0
+        for batch_id in range(batchsize):
+            batch = arr[batch_id]
+            for cur_map,classification in batch:
+                in_map = Variable(torch.from_numpy(cur_map.data))
+                classif = Variable(torch.from_numpy(np.array([classification])))
+                
+                optimizer.zero_grad()
+                output = net(in_map)    #fails: Expects inmap to be a 4D tensor, dim[batchsize,input_size,img_size,img_size]
+                #change create_map_array to get this right....
+                loss = crit(output,classes)
+                loss.backward()
+                optimizer.step()
+                
+                print("Running loss: "+str(running_loss))
+        
+    
