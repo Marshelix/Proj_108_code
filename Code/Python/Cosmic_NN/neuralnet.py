@@ -83,9 +83,7 @@ if __name__ == "__main__":
     
     raw_data = bl.load_data(bl.load_filenames(datapath,"sub"))
     raw_data = raw_data[:int(0.1*len(raw_data))]
-    print(len(raw_data))
     norm_data = bl.normalize_data(raw_data,"0-1",False)
-    print(len(norm_data))
     print("Raw Data loaded. Turning to batches")
     batchsize = 10
     batches = bl.arr_to_batches(norm_data,batchsize,False)
@@ -105,16 +103,20 @@ if __name__ == "__main__":
     #this is now training data
     
     output_size = 2
-    input_size = 4
+    input_size = 1
     h1_size = 1
     h2_size = 1
     h3_size = 1
     net = network(batchsize,input_size,h1_size,h2_size,h3_size,output_size)
+    print(net)
+    if use_cuda:
+        net = net.cuda()
     import torch.optim as optim
     crit = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(),lr = 0.0001,momentum = 0.9)
     print("Network and optimizers created")
     epochs = 10
+    train_losses = []
     for epoch in range(epochs):
         running_loss = 0
         for batch_id in range(batchsize):
@@ -122,6 +124,11 @@ if __name__ == "__main__":
             for cur_map,classification in batch:
                 in_map = Variable(torch.from_numpy(cur_map.data))
                 classif = Variable(torch.from_numpy(np.array([classification])))
+                if use_cuda:
+                    in_map = in_map.cuda()
+                    classif = classif.cuda()
+                in_map = in_map.unsqueeze(0)
+                in_map = in_map.unsqueeze(0)
                 
                 optimizer.zero_grad()
                 output = net(in_map)    #fails: Expects inmap to be a 4D tensor, dim[batchsize,input_size,img_size,img_size]
@@ -129,7 +136,9 @@ if __name__ == "__main__":
                 loss = crit(output,classes)
                 loss.backward()
                 optimizer.step()
-                
+                running_loss += loss.data[0]
                 print("Running loss: "+str(running_loss))
+        train_losses.append(running_loss)
+
         
     
