@@ -214,7 +214,7 @@ def create_string_maps_arr(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose = Fa
 
 def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 0.5,b_Verbose = False):
     '''
-    Creates 2 stacks, one with strings and one without. Takes the 
+    Creates an array of maps and indices(2 arrays in one)
     '''
     np.random.shuffle(base_maps)    #array now shuffled
     max_i = int(percentage_string* len(base_maps))-1
@@ -226,18 +226,19 @@ def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 
     if b_Verbose:
         print(type(staying_maps))
         print(type(string_maps))
-    arr = []
+    
+    map_arr = []
+    idx_arr = []
     for i_map in staying_maps:
-        arr.append((i_map,0))
+        map_arr.append(i_map)
+        idx_arr.append(0)
     #join stacks
     if b_Verbose:
         print("Appending String maps")
     for arra in string_maps:
-        if b_Verbose:
-            print(len(arra))
-            print(type(arra))
-        arr.append((arra[0],arra[1]))
-    return arr
+        map_arr.append(arra[0])
+        idx_arr.append(arra[1])
+    return [np.array(map_arr),np.array(idx_arr)]
 def arr_to_batches(data,batchsize,b_Verbose = False):
     '''
     Turn vector into vector of vectors with batchsize
