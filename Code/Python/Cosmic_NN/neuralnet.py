@@ -41,19 +41,33 @@ class network(nn.Module):
         self.in_size = input_size
         self.out_size = output_size
         self.con1 = nn.Conv2d(batch_size,h1_size,input_size)
-        self.pool1 = nn.MaxPool2d(2,2)
+        self.pool1 = nn.MaxPool2d(1,2)
         self.con2 = nn.Conv2d(batch_size,h2_size,h1_size)
-        self.pool2 = nn.MaxPool2d(2,2)
+        self.pool2 = nn.MaxPool2d(1,2)
         self.l1 = nn.Linear(h2_size,h3_size)
         self.l2 = nn.Linear(h3_size,output_size)
         
     def forward(self,x):
-        x = self.con1(F.sigmoid(x))
-        x = self.pool1(F.relu(x))
+        print("="*10+"Start of network"+"="*10)
+        print(x)
+        x = self.con1((x))
+        print("="*10+"After conv1"+"="*10)
+        print(x)
+        #x = self.pool1(F.relu(x))
+        print("="*10+"After pool1"+"="*10)
+        print(x)
         x = self.con2(F.relu(x))
-        x = self.pool2(F.relu(x))
+        print("="*10+"After conv2"+"="*10)
+        print(x)
+        #x = self.pool2(F.relu(x))
+        print("="*10+"After pool2"+"="*10)
+        print(x)
         x = self.l1(F.relu(x))
+        print("="*10+"After l1"+"="*10)
+        print(x)
         x = self.l2(F.softmax(x))
+        print("="*10+"After l2"+"="*10)
+        print(x)
         return x
 
 
@@ -102,7 +116,7 @@ if __name__ == "__main__":
     #got all batches set correctly
     #this is now training data
     
-    output_size = 2
+    output_size = batchsize
     input_size = 1
     h1_size = 1
     h2_size = 1
@@ -130,15 +144,14 @@ if __name__ == "__main__":
             classif = Variable(torch.from_numpy(idx))
             if use_cuda:
                 in_map = in_map.cuda()
-                
                 classif = classif.cuda()
+            
             in_map = in_map.unsqueeze(0)
             in_map = in_map.float()
-            print(in_map)
             optimizer.zero_grad()
             output = net(in_map)  
             
-            loss = crit(output,classes)
+            loss = crit(output,classif)
             loss.backward()
             optimizer.step()
             running_loss += loss.data[0]
