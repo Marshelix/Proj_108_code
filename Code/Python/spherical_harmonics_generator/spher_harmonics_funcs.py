@@ -26,10 +26,18 @@ import scipy.special as func_base
 import sys
 import numpy as np
 import psutil
-
-mailpath = os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/py_mail"))
+import platform
+cur_os = platform.system()
+print("OS detected: "+cur_os)
+mailpath,setuppath = " "," "
+if cur_os == "Windows":
+    mailpath = os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/py_mail"))
+    setuppath = os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/Setup"))
+elif cur_os == "Linux":
+    mailpath = "../py_mail"
+    setuppath = "../Setup"
 sys.path.append(mailpath)
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),".."+"/Setup")))
+sys.path.append(setuppath)
 from mailbot import email_bot
 from Setup import setup
 import scipy.misc as misc
@@ -311,7 +319,7 @@ def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0,mode = "DH2"):
 
 
 
-def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0):
+def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0,b_Verbose = False):
     '''
         Add n strings to a 0 grid, with random directions.
         Strings are assumed to be 1 element thin, ie only in one dimension, and work as a step function
@@ -337,8 +345,8 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0):
     ymax = grid_dim[1]
 
     new_grid_data = np.zeros(shape = (xmax,ymax))
-    
-    print("Amplitude: "+str(amp))
+    if b_Verbose:
+        print("Amplitude: "+str(amp))
     for i in range(num_strings):
         '''
             For each string: 
@@ -383,12 +391,14 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0):
     ax.set_title("New map G_mu = "+str(G_mu)+",A = "+str(A))
     total_grid_data = new_grid_data + grid.data
     total_grid = sht.SHGrid.from_array(total_grid_data)
-    print("TG Data size: "+str(total_grid_data.shape))
+    if b_Verbose:
+        print("TG Data size: "+str(total_grid_data.shape))
     if tgname is not None:
         f2,ax2 = total_grid.plot(fname = tgname)
     else:
         f2,ax2 = total_grid.plot()
     ax2.set_title("Total map - T_Min = "+str(np.min(total_grid.data))+" - T_Max = "+str(np.max(total_grid.data)))
+    plt.close("all")
     return new_map,total_grid
 
 #g1 = gen_map(filename,info_name)
@@ -837,7 +847,7 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
             old_save = i
             
     return np.array(total_maps),np.array(string_maps),np.array(full_maps),np.array(sub_maps)
-gen_multiple_maps(1000,filename,info_name,n_min = 40)
+#gen_multiple_maps(1000,filename,info_name,n_min = 40)
 t_elapsed = datetime.now() - t_start
 print("Elapsed time = "+str(t_elapsed))
 
