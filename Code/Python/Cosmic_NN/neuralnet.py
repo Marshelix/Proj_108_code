@@ -43,8 +43,8 @@ class network(nn.Module):
         self.h1_size = h1_size
         self.h2_size = h2_size
         self.h3_size = h3_size
-        self.con1 = nn.Conv2d(batch_size,h1_size,input_size)
-        self.pool1 = nn.MaxPool2d(2,2)
+        self.con1 = nn.Conv2d(h1_size,batch_size,input_size)
+        self.pool1 = nn.MaxPool2d(16,16)
         self.con2 = nn.Conv2d(batch_size,h2_size,input_size)
         self.pool2 = nn.MaxPool2d(2,2)
         self.l1 = nn.Linear(int(1/4*h2_size*h1_size*h1_size),h3_size)
@@ -125,9 +125,9 @@ if __name__ == "__main__":
     
     output_size = batchsize
     input_size = 1
-    h1_size = 10
+    h1_size = 1
     h2_size = 10
-    h3_size = 10
+    h3_size = 1
     net = network(batchsize,input_size,h1_size,h2_size,h3_size,output_size)
     print("="*10 + "NETWORK"+"="*10)
     print(net)
@@ -155,7 +155,7 @@ if __name__ == "__main__":
                 in_map = in_map.cuda()
                 classif = classif.cuda()
             
-            in_map = in_map.unsqueeze(0)
+            in_map = in_map.unsqueeze(1)
             in_map = in_map.float()
             optimizer.zero_grad()
             output = net(in_map)  
