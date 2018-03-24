@@ -45,7 +45,7 @@ class network(nn.Module):
         self.h3_size = h3_size
         self.con1 = nn.Conv2d(h1_size,batch_size,input_size)
         self.pool1 = nn.MaxPool2d(16,16)
-        self.con2 = nn.Conv2d(batch_size,h2_size,input_size)
+        self.con2 = nn.Conv2d(h2_size,h1_size,input_size)
         self.pool2 = nn.MaxPool2d(2,2)
         self.l1 = nn.Linear(int(1/4*h2_size*h1_size*h1_size),h3_size)
         self.l2 = nn.Linear(h3_size,output_size)
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     #got all batches set correctly
     #this is now training data
     
-    output_size = batchsize
+    output_size = 2
     input_size = 1
     h1_size = 1
     h2_size = 10
