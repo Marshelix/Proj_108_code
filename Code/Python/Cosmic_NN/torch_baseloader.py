@@ -262,8 +262,22 @@ def arr_to_batches(data,batchsize,b_Verbose = False):
         print("Fits with original estimate: "+str(len(arr)==num_batches))
     return arr
     
-    
-    
+def turn_class_mat_to_vec(results,use_cuda = False):
+    '''
+    take a [batchsize,num_classes] matrix, and turn it into a vector signifying wether or not theres strings involved
+    '''
+    out = []
+    for classif in results:
+        out.append(np.argmax(classif.data))
+    return Variable(torch.from_numpy(np.array(out))).cuda() if use_cuda else Variable(torch.from_numpy(np.array(out)))
+
+def log(s):
+    if not isinstance(s,str):
+        s = str(s)  #cast into string
+    with open("log.txt","w") as f:
+        f.write("["+str(datetime.now())+"]: "+s)
+        print("["+str(datetime.now())+"]: "+s)
+
 if __name__ == "__main__":
     t_start = datetime.now()
     data = load_data(load_filenames(datapath,"sub"))
