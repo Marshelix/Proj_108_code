@@ -30,7 +30,7 @@ from torch import nn
 import torch.nn.functional as F
 
 import matplotlib.pyplot as plt
-
+import random
 import math
 
 class network(nn.Module):
@@ -39,7 +39,7 @@ class network(nn.Module):
                  out_channels_conv2 = 1,kernel_conv2 = 2,   #Conv layer 2
                  pooling_kernel_1 = 16, #Pooling layer 1
                  pooling_kernel_2 = 4,  #Pooling layer 2
-                 lin_output_size = 2): #lin layer
+                 lin_input_size = 9,lin_output_size = 2): #lin layer
         '''
         define neural network
         '''
@@ -52,7 +52,7 @@ class network(nn.Module):
         self.pool2 = nn.MaxPool2d(pooling_kernel_2)
         # ignore lin layer for now due to data sizes
         #before lin layer x.data.shape = [batchsize,9]
-        self.lin = nn.Linear(9,lin_output_size)
+        self.lin = nn.Linear(lin_input_size,lin_output_size)
     def forward(self,x):
         #log("="*10+"Start of network"+"="*10)
         batsize = x.data.shape[0]
@@ -104,42 +104,76 @@ if __name__ == "__main__":
     use_cuda = torch.cuda.is_available()
     log("Using CUDA: "+str(use_cuda))
     
-    raw_data = bl.load_data(bl.load_filenames(datapath,"sub"))
-    raw_data = raw_data[:int(0.75*len(raw_data))]
-    norm_data = bl.normalize_data(raw_data,"0-1",False)
-    log("Raw Data loaded. Turning to batches")
-    batchsize = 10
-    batches = bl.arr_to_batches(norm_data,batchsize,False)
+    #####
+    # Data Aqcuisition
+    #####
     
-    smaps_per_maps = settings["NN"][0]
+    
+    raw_data = bl.load_data(bl.load_filenames(datapath,"sub"))
+    cutoff_percentage = 0.75    #How many percent to use for training/
+    cutoff = int(cutoff_percentage*len(raw_data))
+    raw_data_train = raw_data[:cutoff]
+    raw_data_test = raw_data[cutoff:]
+    norm_data_train = bl.normalize_data(raw_data_train,"0-1",False)
+    norm_data_test = bl.normalize_data(raw_data_test,"0-1",False)
+    log("Raw Data loaded. Turning to batches")
+    
+    batchsize = 10
+    
+    batches = bl.arr_to_batches(norm_data_train,batchsize,False)
+    batches_test = bl.arr_to_batches(norm_data_test,batchsize,False)
+    log("Batches generated")
+    smaps_per_maps = 10#settings["NN"][0]
     log("Generating "+str(smaps_per_maps) +" string maps per stringless one.")
+    
     G_mu = 10**-7
     v = 1
     A = G_mu*v
     train_arr = []
-    sarr = []
+    
     percentage_with_strings = 0.5
     for batch in batches:
         stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
         train_arr.append(stack)
-    log("Batches generated")
+    log("Training Batches generated. "+str(len(train_arr)) +" Elements in train_arr.")
+    test_arr = []
+    for batch in batches_test:
+        stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
+        test_arr.append(stack)
+    log("Testing Batches generated. "+str(len(test_arr)) + " Elements in test_arr.")
     #got all batches set correctly
-    #this is now training data
+    #this is now training and testing data
     
+    
+    ######
+    #Network definition
+    #####
     output_size = 2
-    input_size = 1
-    h1_size = 1
-    h2_size = 10
-    h3_size = 1
+    
+    in_channels = 1
+    out_channels_conv1 = 1
+    kernel_conv1 = 2  #Conv layer 1
+    out_channels_conv2 = 1
+    kernel_conv2 = 2   #Conv layer 2
+    pooling_kernel_1 = 16 #Pooling layer 1
+    pooling_kernel_2 = 4  #Pooling layer 2
+    lin_input_size = 9
+    lin_output_size = 2
     net = network()
     print("="*10 + "NETWORK"+"="*10)
     print(net)
     print("="*27)
+    
     if use_cuda:
         net = net.cuda()
+    
+    #####
+    # Training parameters
+    #####
+    
     import torch.optim as optim
     crit = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(),lr = 0.01,momentum = 0.9)
+    optimizer = optim.SGD(net.parameters(),lr = 0.001,momentum = 0.9)
     log("Network and optimizers created")
     epochs = 1000
     train_losses = []
@@ -147,6 +181,8 @@ if __name__ == "__main__":
     for epoch in range(epochs):
         running_loss = 0
         net.train()
+        #randomize training array
+        random.shuffle(train_arr)
         for batch_id in range(len(train_arr)):  #cycle over all batches in train_arr
             batch = train_arr[batch_id]
             cur_maps = batch[0]
@@ -177,7 +213,7 @@ if __name__ == "__main__":
                 log("[Epoch: "+str(epoch)+"("+str(epoch/(epochs-1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:Running loss: "+str(running_loss))
         train_losses.append(running_loss)
         log("="*20)
-        log("Elapsed time since start: "+str(datetime.now() - t_train_start))    
+        log("Elapsed time since starting training: "+str(datetime.now() - t_train_start))    
         log("="*20)
     t_train_end = datetime.now()
     t_train_elapsed = t_train_end - t_train_start
@@ -185,3 +221,8 @@ if __name__ == "__main__":
         
     plt.plot(train_losses)
     plt.title("Train losses every batch vs datapoints: Epochs= "+str(epochs))
+    #testing needed
+    
+    ######
+    #Testing
+    ######

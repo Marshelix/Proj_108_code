@@ -274,8 +274,8 @@ def turn_class_mat_to_vec(results,use_cuda = False):
 def log(s):
     if not isinstance(s,str):
         s = str(s)  #cast into string
-    with open("log.txt","w") as f:
-        f.write("["+str(datetime.now())+"]: "+s)
+    with open("log.txt","a") as f:
+        f.write("["+str(datetime.now())+"]: "+s+"\n")
         print("["+str(datetime.now())+"]: "+s)
 
 if __name__ == "__main__":
