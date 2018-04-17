@@ -272,9 +272,10 @@ def turn_class_mat_to_vec(results,use_cuda = False):
     return Variable(torch.from_numpy(np.array(out))).cuda() if use_cuda else Variable(torch.from_numpy(np.array(out)))
 
 def log(s):
+    
     if not isinstance(s,str):
         s = str(s)  #cast into string
-    with open("log.txt","a") as f:
+    with open("log"+str(datetime.today().day)+"_"+str(datetime.today().month)+"_"+str(datetime.today().year)+".txt","a") as f:
         f.write("["+str(datetime.now())+"]: "+s+"\n")
         print("["+str(datetime.now())+"]: "+s)
 
