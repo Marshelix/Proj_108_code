@@ -33,7 +33,11 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import random
 import math
-
+log("="*40)
+log("*"*40)
+log("New Run")
+log("*"*40)
+log("="*40)
 
 class network(nn.Module):
     def __init__(self,batch_size = 10,num_classes = 2,   #Data for input/output of lin layer
@@ -132,7 +136,7 @@ if __name__ == "__main__":
     ###
     # Projected time till completion
     ###
-    time_per_map = 90 #each map adds about 1.5 min
+    time_per_map = 92 #each map adds about 1.5 min
 
     Gmus = [1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
     num_Gmus = len(Gmus)
@@ -218,7 +222,7 @@ if __name__ == "__main__":
     
     epochs = 200
     
-    time_per_epoch_map = 0.013325  #s
+    time_per_epoch_map = 0.000519  #s from test
     dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
     
     t_train_start = datetime.now()
@@ -384,19 +388,19 @@ if __name__ == "__main__":
     ############
     batches_per_class = len(test_arr)/num_Gmus
     net.eval()
-    accura = 0
-    test_loss_class = 0
+
     
     accuracies_per_class = []
     test_losses = []
     for i in range(num_Gmus):
+        accura = 0
+        test_loss_class = 0
         lower = i*batches_per_class
         upper = (i+1)*batches_per_class
-        #testing is not shuffled, ie we expect the test arrays to consist of batches of a class each segmented
+        #testing is not shuffled, 
+        #ie we expect the test arrays to consist of batches of only one class each
         # -> can loop through classes
-        
-        
-        for batch_id in range(lower,upper):
+        for batch_id in range(int(lower),int(upper)):
             batch = test_arr[batch_id]
             cur_maps = batch[0]
             idx = batch[1]
@@ -419,7 +423,8 @@ if __name__ == "__main__":
             pred_class = pred.data.max(1,keepdim = True)[1] #max index
             pred_class = pred_class.long()
             accura += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
-        log("Accuracy and Loss for "+str(Gmus(i))+": "+str(100*accura/((upper-lower)*len(test_arr[0][0])))+"%"+", loss = "+str(test_loss_class))
-        test_losses.append(test_loss)
-        accuracies_per_class.append(accura)
+        log("Accuracy and Loss for "+str(Gmus[i])+": "+str(100*accura/((upper-lower)*len(test_arr[0][0])))+"%"+", loss = "+str(test_loss_class))
+        log("Hits: "+str(accura))
+        test_losses.append(test_loss_class)
+        accuracies_per_class.append(100*accura/((upper-lower)*len(test_arr[0][0])))
             

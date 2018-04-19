@@ -275,7 +275,7 @@ def log(s):
     
     if not isinstance(s,str):
         s = str(s)  #cast into string
-    with open("log"+str(datetime.today().day)+"_"+str(datetime.today().month)+"_"+str(datetime.today().year)+".txt","a") as f:
+    with open("log_"+str(datetime.today().day)+"_"+str(datetime.today().month)+"_"+str(datetime.today().year)+".txt","a") as f:
         f.write("["+str(datetime.now())+"]: "+s+"\n")
         print("["+str(datetime.now())+"]: "+s)
 
