@@ -33,7 +33,11 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import random
 import math
-
+log("="*40)
+log("*"*40)
+log("New Run")
+log("*"*40)
+log("="*40)
 
 class network(nn.Module):
     def __init__(self,batch_size = 10,num_classes = 2,   #Data for input/output of lin layer
@@ -125,40 +129,58 @@ if __name__ == "__main__":
     batches_test = bl.arr_to_batches(norm_data_test,batchsize,False)
     log("Batches generated")
     
-    smaps_per_maps = 25#settings["NN"][0]
-    log("Generating "+str(smaps_per_maps) +" string maps per stringless one.")
+    smaps_per_maps = 20#settings["NN"][0]
+    log("Generating "+str(smaps_per_maps) +" string maps per stringless one/type of string.")
     
     
     ###
     # Projected time till completion
     ###
-    time_per_map = 100   #each map adds about 1.5 min
+    time_per_map = 92 #each map adds about 1.5 min
 
-    
-    dt_gen = timedelta(seconds = time_per_map*smaps_per_maps)
+    Gmus = [1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
+    num_Gmus = len(Gmus)
+    dt_gen = timedelta(seconds = time_per_map*smaps_per_maps*num_Gmus)
     log("Estimated time till completion of map generation: "+str(dt_gen))
     log("Estimated time of completion of map generation: "+str(datetime.now() + dt_gen))
+    #Train network not just on one G_mu but multiple ones
+    train_arr = []
+    test_arr = []
+    percentage_with_strings = 0.5
+    for G_mu in Gmus:
+        v = 1
+        A = G_mu*v
+        log("Values for string maps: (G_mu,v,A):("+str(G_mu)+","+str(v)+","+str(A)+")")
+        for batch in batches:
+            stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
+            train_arr.append(stack)
+        log("Training Batches generated. "+str(len(train_arr)) +" Elements in train_arr.")
+        
+        log(str(len(train_arr[0][0]))+" elements per train batch.")
     
-    
-    
-    G_mu = 10**-7
+        for batch in batches_test:
+            stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
+            test_arr.append(stack)
+        log("Testing Batches generated. "+str(len(test_arr)) + " Elements in test_arr.")
+        log(str(len(test_arr[0][0]))+" elements per test batch.")
+    '''
+    G_mu = 10**-6
     v = 1
     A = G_mu*v
-    log("Values for string maps: (G_mu,v,A):("+str(G_mu)+","+str(v)+","+str(A)+")")
-    train_arr = []
+
     
-    percentage_with_strings = 0.5
     for batch in batches:
         stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
         train_arr.append(stack)
     log("Training Batches generated. "+str(len(train_arr)) +" Elements in train_arr.")
     log(str(len(train_arr[0][0]))+" elements per train batch.")
-    test_arr = []
+    
     for batch in batches_test:
         stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
         test_arr.append(stack)
     log("Testing Batches generated. "+str(len(test_arr)) + " Elements in test_arr.")
     log(str(len(test_arr[0][0]))+" elements per test batch.")
+    '''
     #got all batches set correctly
     #this is now training and testing data
     
@@ -191,17 +213,17 @@ if __name__ == "__main__":
     
     import torch.optim as optim
     crit = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(),lr = 0.001,momentum = 0)
+    optimizer = optim.SGD(net.parameters(),lr = 0.001,momentum = 0.9)
     log("Network and optimizers created")
     
     #######
     # Time till training completion
     #######
     
-    epochs = 1000
+    epochs = 200
     
-    time_per_epoch = 7.1  #s
-    dt_train = timedelta(seconds = time_per_epoch * epochs)
+    time_per_epoch_map = 0.000519  #s from test
+    dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
     
     t_train_start = datetime.now()
     t_train_finish_proj = t_train_start + dt_train
@@ -251,11 +273,7 @@ if __name__ == "__main__":
         
         ax1.set_title("Train losses every batch vs datapoints: Epoch #"+str(epoch))
         
-        ####
-        #
-        # Perform testing here!
-        #
-        ####
+        #Run testing for monitoring
         net.eval()
         test_loss_train = 0
         correct = 0
@@ -299,8 +317,9 @@ if __name__ == "__main__":
         log("="*20)
     t_train_end = datetime.now()
     t_train_elapsed = t_train_end - t_train_start
+    
     log("Elapsed time on training: "+str(t_train_elapsed))
-
+    log("Elapsed time per Epoch/map: "+str(t_train_elapsed/(epochs*4*len(test_arr)*len(test_arr[0][0]))))
     #testing needed
     
     ax1.clear()
@@ -313,7 +332,11 @@ if __name__ == "__main__":
         
     ax3.clear()
     ax3.plot(correctness)
-    ax3.set_title("Accuracy @ Epoch #: "+str(epoch))              
+    ax3.set_title("Accuracy @ Epoch #: "+str(epoch))
+    plt.pause(1e-8)
+    
+    #=========================================================================#
+    #=========================================================================#
     ######
     #Testing
     ######
@@ -346,7 +369,62 @@ if __name__ == "__main__":
         pred_class = pred_class.long()
         correct += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
     log("Test set accuracy: "+str(100*correct/(len(test_arr)*len(test_arr[0][0]))) + "% ,loss = "+str(test_loss))
+    
+        
+    ######
     # Saving
     ######
-    with open("Model_"+str(epochs)+".dat","wb") as f:
+    with open("Models/Model_"+str(epochs)+".dat","wb") as f:
         torch.save(net,f)
+    #Save state dicts
+    with open("Models/dict_"+str(epochs)+".dat","wb") as f:
+        torch.save(net.state_dict,f)
+    with open("Models/optim_dict_"+str(epochs)+".dat","wb") as f:
+        torch.save(optimizer.state_dict,f)
+    
+    
+    ############
+    #Accuracy for different classes
+    ############
+    batches_per_class = len(test_arr)/num_Gmus
+    net.eval()
+
+    
+    accuracies_per_class = []
+    test_losses = []
+    for i in range(num_Gmus):
+        accura = 0
+        test_loss_class = 0
+        lower = i*batches_per_class
+        upper = (i+1)*batches_per_class
+        #testing is not shuffled, 
+        #ie we expect the test arrays to consist of batches of only one class each
+        # -> can loop through classes
+        for batch_id in range(int(lower),int(upper)):
+            batch = test_arr[batch_id]
+            cur_maps = batch[0]
+            idx = batch[1]
+            temp_arr = []
+            for m in cur_maps:
+                temp_arr.append(m.data)
+            in_map = Variable(torch.from_numpy(np.array(temp_arr)))
+            classif = Variable(torch.from_numpy(idx))
+            if use_cuda:
+                in_map = in_map.cuda()
+                classif = classif.cuda()
+            in_map = in_map.unsqueeze(1)
+            in_map = in_map.float()
+        
+            pred = net(in_map)
+        
+            loss = crit(pred.float(),classif.long())
+            test_loss_class += loss.data[0]
+            classif = classif.long()
+            pred_class = pred.data.max(1,keepdim = True)[1] #max index
+            pred_class = pred_class.long()
+            accura += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
+        log("Accuracy and Loss for "+str(Gmus[i])+": "+str(100*accura/((upper-lower)*len(test_arr[0][0])))+"%"+", loss = "+str(test_loss_class))
+        log("Hits: "+str(accura))
+        test_losses.append(test_loss_class)
+        accuracies_per_class.append(100*accura/((upper-lower)*len(test_arr[0][0])))
+            
