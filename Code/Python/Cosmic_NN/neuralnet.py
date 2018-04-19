@@ -125,7 +125,7 @@ if __name__ == "__main__":
     batches_test = bl.arr_to_batches(norm_data_test,batchsize,False)
     log("Batches generated")
     
-    smaps_per_maps = 35#settings["NN"][0]
+    smaps_per_maps = 20#settings["NN"][0]
     log("Generating "+str(smaps_per_maps) +" string maps per stringless one/type of string.")
     
     
@@ -134,9 +134,9 @@ if __name__ == "__main__":
     ###
     time_per_map = 90 #each map adds about 1.5 min
 
-    Gmus = [1e-6,1e-7]
-    
-    dt_gen = timedelta(seconds = time_per_map*smaps_per_maps*len(Gmus))
+    Gmus = [1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
+    num_Gmus = len(Gmus)
+    dt_gen = timedelta(seconds = time_per_map*smaps_per_maps*num_Gmus)
     log("Estimated time till completion of map generation: "+str(dt_gen))
     log("Estimated time of completion of map generation: "+str(datetime.now() + dt_gen))
     #Train network not just on one G_mu but multiple ones
@@ -216,10 +216,10 @@ if __name__ == "__main__":
     # Time till training completion
     #######
     
-    epochs = 250
+    epochs = 200
     
     time_per_epoch_map = 0.013325  #s
-    dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr[0])*len(test_arr[0][0]))  #time estimate based on total time from experiment
+    dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
     
     t_train_start = datetime.now()
     t_train_finish_proj = t_train_start + dt_train
@@ -269,11 +269,7 @@ if __name__ == "__main__":
         
         ax1.set_title("Train losses every batch vs datapoints: Epoch #"+str(epoch))
         
-        ####
-        #
-        # Perform testing here!
-        #
-        ####
+        #Run testing for monitoring
         net.eval()
         test_loss_train = 0
         correct = 0
@@ -319,7 +315,7 @@ if __name__ == "__main__":
     t_train_elapsed = t_train_end - t_train_start
     
     log("Elapsed time on training: "+str(t_train_elapsed))
-    log("Elapsed time per Epoch/map: "+str(t_train_elapsed/(epochs*len(test_arr[0][0]))))
+    log("Elapsed time per Epoch/map: "+str(t_train_elapsed/(epochs*4*len(test_arr)*len(test_arr[0][0]))))
     #testing needed
     
     ax1.clear()
@@ -334,6 +330,9 @@ if __name__ == "__main__":
     ax3.plot(correctness)
     ax3.set_title("Accuracy @ Epoch #: "+str(epoch))
     plt.pause(1e-8)
+    
+    #=========================================================================#
+    #=========================================================================#
     ######
     #Testing
     ######
@@ -366,6 +365,9 @@ if __name__ == "__main__":
         pred_class = pred_class.long()
         correct += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
     log("Test set accuracy: "+str(100*correct/(len(test_arr)*len(test_arr[0][0]))) + "% ,loss = "+str(test_loss))
+    
+        
+    ######
     # Saving
     ######
     with open("Models/Model_"+str(epochs)+".dat","wb") as f:
@@ -375,3 +377,49 @@ if __name__ == "__main__":
         torch.save(net.state_dict,f)
     with open("Models/optim_dict_"+str(epochs)+".dat","wb") as f:
         torch.save(optimizer.state_dict,f)
+    
+    
+    ############
+    #Accuracy for different classes
+    ############
+    batches_per_class = len(test_arr)/num_Gmus
+    net.eval()
+    accura = 0
+    test_loss_class = 0
+    
+    accuracies_per_class = []
+    test_losses = []
+    for i in range(num_Gmus):
+        lower = i*batches_per_class
+        upper = (i+1)*batches_per_class
+        #testing is not shuffled, ie we expect the test arrays to consist of batches of a class each segmented
+        # -> can loop through classes
+        
+        
+        for batch_id in range(lower,upper):
+            batch = test_arr[batch_id]
+            cur_maps = batch[0]
+            idx = batch[1]
+            temp_arr = []
+            for m in cur_maps:
+                temp_arr.append(m.data)
+            in_map = Variable(torch.from_numpy(np.array(temp_arr)))
+            classif = Variable(torch.from_numpy(idx))
+            if use_cuda:
+                in_map = in_map.cuda()
+                classif = classif.cuda()
+            in_map = in_map.unsqueeze(1)
+            in_map = in_map.float()
+        
+            pred = net(in_map)
+        
+            loss = crit(pred.float(),classif.long())
+            test_loss_class += loss.data[0]
+            classif = classif.long()
+            pred_class = pred.data.max(1,keepdim = True)[1] #max index
+            pred_class = pred_class.long()
+            accura += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
+        log("Accuracy and Loss for "+str(Gmus(i))+": "+str(100*accura/((upper-lower)*len(test_arr[0][0])))+"%"+", loss = "+str(test_loss_class))
+        test_losses.append(test_loss)
+        accuracies_per_class.append(accura)
+            
