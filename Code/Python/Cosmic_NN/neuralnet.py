@@ -129,7 +129,7 @@ if __name__ == "__main__":
     batches_test = bl.arr_to_batches(norm_data_test,batchsize,False)
     log("Batches generated")
     
-    smaps_per_maps = 20#settings["NN"][0]
+    smaps_per_maps = 5#settings["NN"][0]
     log("Generating "+str(smaps_per_maps) +" string maps per stringless one/type of string.")
     
     
@@ -147,6 +147,7 @@ if __name__ == "__main__":
     train_arr = []
     test_arr = []
     percentage_with_strings = 0.5
+    t_g_start = datetime.now()
     for G_mu in Gmus:
         v = 1
         A = G_mu*v
@@ -154,36 +155,22 @@ if __name__ == "__main__":
         for batch in batches:
             stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
             train_arr.append(stack)
-        log("Training Batches generated. "+str(len(train_arr)) +" Elements in train_arr.")
+        log("Training Batches generated. "+str(len(train_arr)) +" Batches in train_arr.")
         
         log(str(len(train_arr[0][0]))+" elements per train batch.")
     
         for batch in batches_test:
             stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
             test_arr.append(stack)
-        log("Testing Batches generated. "+str(len(test_arr)) + " Elements in test_arr.")
+        log("Testing Batches generated. "+str(len(test_arr)) + " Batches in test_arr.")
         log(str(len(test_arr[0][0]))+" elements per test batch.")
-    '''
-    G_mu = 10**-6
-    v = 1
-    A = G_mu*v
-
-    
-    for batch in batches:
-        stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
-        train_arr.append(stack)
-    log("Training Batches generated. "+str(len(train_arr)) +" Elements in train_arr.")
-    log(str(len(train_arr[0][0]))+" elements per train batch.")
-    
-    for batch in batches_test:
-        stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
-        test_arr.append(stack)
-    log("Testing Batches generated. "+str(len(test_arr)) + " Elements in test_arr.")
-    log(str(len(test_arr[0][0]))+" elements per test batch.")
-    '''
+    t_g_ela = datetime.now() - t_g_start
+    tgela_per_map_gmu = t_g_ela/(num_Gmus*len(test_arr)*len(test_arr[0])*4)
+    log("Time elapsed on map generation: "+str(t_g_ela))
+    log("Time elapsed per map in generation: "+str(tgela_per_map_gmu))
     #got all batches set correctly
     #this is now training and testing data
-    
+    log("#"*30)
     
     ######
     #Network definition
@@ -203,7 +190,7 @@ if __name__ == "__main__":
     print("="*10 + "NETWORK"+"="*10)
     print(net)
     print("="*27)
-    
+    log("#"*30)
     if use_cuda:
         net = net.cuda()
     
@@ -220,9 +207,9 @@ if __name__ == "__main__":
     # Time till training completion
     #######
     
-    epochs = 200
+    epochs = 120
     
-    time_per_epoch_map = 0.000519  #s from test
+    time_per_epoch_map = 0.000817  #s from test
     dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
     
     t_train_start = datetime.now()
@@ -234,20 +221,29 @@ if __name__ == "__main__":
     test_losses = []
     correctness = []
     f,(ax1,ax2,ax3) = plt.subplots(3,1)
-    for epoch in range(epochs):
+    ###########################################################################
+    #Setup end
+    ###########################################################################
+    def train(epoch):
+        '''
+        Train the neural net, update plots accordingly
+        '''
         running_loss = 0
         net.train()
         #randomize training array
         random.shuffle(train_arr)
         for batch_id in range(len(train_arr)):  #cycle over all batches in train_arr
+            '''
             batch = train_arr[batch_id]
             cur_maps = batch[0]
             idx = batch[1]
+            '''
+            cur_maps,idx = train_arr[batch_id]
+            
             temp_arr = []
             for m in cur_maps:
                 temp_arr.append(m.data)
-            in_map = Variable(torch.from_numpy(np.array(temp_arr)))
-            classif = Variable(torch.from_numpy(idx))
+            in_map,classif = Variable(torch.from_numpy(np.array(temp_arr))),Variable(torch.from_numpy(idx))
             #log("In_map shape: "+str(in_map.data.shape))
             #log("Classifier shape: "+str(classif.data.shape))
             if use_cuda:
@@ -265,15 +261,16 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             running_loss += loss.data[0]
-            if math.floor(batch_id/len(train_arr)*100) % 25 == 0:
+            if int(batch_id/len(train_arr)*100) % 25 == 0:
                 log("[Epoch: "+str(epoch)+"("+str(epoch/max((epochs-1),1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:Running loss: "+str(running_loss))
         train_losses.append(running_loss)
         ax1.clear()
         ax1.plot(train_losses)
         
         ax1.set_title("Train losses every batch vs datapoints: Epoch #"+str(epoch))
-        
+    def test(epoch):
         #Run testing for monitoring
+    
         net.eval()
         test_loss_train = 0
         correct = 0
@@ -300,48 +297,41 @@ if __name__ == "__main__":
             pred_class = pred_class.long()
             correct += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
         log("Test set accuracy: "+str(100*correct/(len(test_arr)*len(test_arr[0][0]))) + "% ,loss = "+str(test_loss_train))
+        log("Correct hits: "+str(correct))
         correctness.append(100*correct/(len(test_arr)*len(test_arr[0][0])))    
         test_losses.append(test_loss_train)
         ax2.clear()
         ax2.plot(test_losses)
         ax2.set_title("Test losses every batch: Epoch #"+str(epoch))
-        
+    
         ax3.clear()
         ax3.plot(correctness)
-        ax3.set_title("Accuracy @ Epoch #: "+str(epoch))              
+        ax3.set_title("Accuracy @ Epoch #: "+str(epoch))      
+            
         plt.pause(1e-7)
         
         log("="*20)
         log("Elapsed time since starting training: "+str(datetime.now() - t_train_start))
         log("Estimated time left: "+str(t_train_finish_proj - datetime.now()))
         log("="*20)
+    
+    for epoch in range(epochs):
+        train(epoch)
+        test(epoch)
     t_train_end = datetime.now()
     t_train_elapsed = t_train_end - t_train_start
     
     log("Elapsed time on training: "+str(t_train_elapsed))
     log("Elapsed time per Epoch/map: "+str(t_train_elapsed/(epochs*4*len(test_arr)*len(test_arr[0][0]))))
-    #testing needed
     
-    ax1.clear()
-    ax1.plot(train_losses)
-    ax1.set_title("Train losses every batch vs datapoints: Epoch #"+str(epoch))
-    
-    ax2.clear()
-    ax2.plot(test_losses)
-    ax2.set_title("Test losses every batch: Epoch #"+str(epoch))
-        
-    ax3.clear()
-    ax3.plot(correctness)
-    ax3.set_title("Accuracy @ Epoch #: "+str(epoch))
-    plt.pause(1e-8)
     
     #=========================================================================#
     #=========================================================================#
     ######
     #Testing
     ######
-    
-    
+    test(epochs)
+    '''
     net.eval()
     test_loss = 0
     correct = 0
@@ -362,24 +352,24 @@ if __name__ == "__main__":
         
         pred = net(in_map)
         
-        loss = crit(pred.float(),classif.long())
+        loss = F.cross_entropy(pred.float(),classif.long())
         test_loss += loss.data[0]
         classif = classif.long()
         pred_class = pred.data.max(1,keepdim = True)[1] #max index
         pred_class = pred_class.long()
         correct += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
     log("Test set accuracy: "+str(100*correct/(len(test_arr)*len(test_arr[0][0]))) + "% ,loss = "+str(test_loss))
-    
+    '''
         
     ######
     # Saving
     ######
-    with open("Models/Model_"+str(epochs)+".dat","wb") as f:
+    with open("Models/wModel_"+str(epochs)+".dat","wb") as f:
         torch.save(net,f)
     #Save state dicts
-    with open("Models/dict_"+str(epochs)+".dat","wb") as f:
+    with open("Models/wdict_"+str(epochs)+".dat","wb") as f:
         torch.save(net.state_dict,f)
-    with open("Models/optim_dict_"+str(epochs)+".dat","wb") as f:
+    with open("Models/woptim_dict_"+str(epochs)+".dat","wb") as f:
         torch.save(optimizer.state_dict,f)
     
     
