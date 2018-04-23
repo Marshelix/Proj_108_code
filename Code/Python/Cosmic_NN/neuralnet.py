@@ -130,7 +130,7 @@ if __name__ == "__main__":
     
     log("Raw Data loaded. Turning to batches")
     
-    batchsize = 100
+    batchsize = 10
     
     batches = bl.arr_to_batches(raw_data_train,batchsize,False)
     batches_test = bl.arr_to_batches(raw_data_test,batchsize,False)
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     tgela_per_map_gmu = t_g_ela/(num_Gmus*len(test_arr)*len(test_arr[0])*4)
     
  
-    
+    #train_arr[0][0][9].expand()
     log("Time elapsed on map generation: "+str(t_g_ela))
     log("Time elapsed per map in generation: "+str(tgela_per_map_gmu))
     #got all batches set correctly
@@ -226,13 +226,13 @@ if __name__ == "__main__":
     log("le = "+str(lr)+", momentum = "+str(mom))
     optimizer = optim.SGD(net.parameters(),lr,momentum = mom)
     log("Network and optimizers created")
-    log("_"*15)
+    log("#"*30)
     
     #######
     # Time till training completion
     #######
     
-    epochs = 2000
+    epochs = 500
     
     time_per_epoch_map = 0.000817  #s from test
     dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
@@ -310,7 +310,7 @@ if __name__ == "__main__":
             #    print(param.grad.data.sum())
             if int(batch_id/len(train_arr)*100) % 25 == 0:
                 log("[Epoch: "+str(epoch)+"("+str(epoch/max((epochs-1),1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:Running loss: "+str(running_loss))
-                log("[Epoch: "+str(epoch)+"("+str(epoch/max((epochs-1),1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:String maps percentage: "+str(100*classif.sum().data/len(classif))+"%")
+                #log("[Epoch: "+str(epoch)+"("+str(epoch/max((epochs-1),1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:String maps percentage: "+str(100*classif.sum().data/len(classif))+"%")
                 # != accuracy
         train_losses.append(running_loss)
         ax1.clear()

@@ -356,7 +356,7 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0,b_Verbose = False):
                 
         '''
         #pick direction
-        dire = random.randint(1,4)
+        dire = 2#random.randint(1,4)
         if dire  == 1:
             xi = random.randint(0,xmax)
             yi = random.randint(0,ymax)
@@ -366,7 +366,7 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0,b_Verbose = False):
                 for y in range(0,ymax):
                     new_grid_data[x][y] =new_grid_data[x][y]+ amp*((int(y >= -x+b)-0.5))#step on line
         elif dire == 2:
-            xi = random.randint(0,xmax)
+            xi = int(xmax/2) #random.randint(0,xmax)
             
             for x in range(0,xmax):
                 new_grid_data[x][:] =new_grid_data[x][:]+ amp*((int(x >= xi)-0.5))

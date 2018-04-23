@@ -251,13 +251,13 @@ def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 
     map_arr = []
     idx_arr = []
     for i_map in staying_maps:
-        map_arr.append(i_map)
+        map_arr.append(i_map.data)
         idx_arr.append(0)
     #join stacks
     if b_Verbose:
         print("Appending String maps")
     for arra in string_maps:
-        map_arr.append(arra[0])
+        map_arr.append(arra[0].data)
         idx_arr.append(arra[1])
     if b_normalize:
         if b_Verbose:
