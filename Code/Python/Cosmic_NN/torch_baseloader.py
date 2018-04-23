@@ -7,7 +7,7 @@ Created on Sun Feb 11 18:25:42 2018
 
 import torch
 from torch.autograd import Variable
-import torchvision
+
 import platform
 import os
 import sys
@@ -83,7 +83,7 @@ def load_data(filenames,b_Verbose = False):
             print(name + " closed.")
     
     return np.array(total_arr)
-def normalize_data(data,normalization = "1-0",b_Verbose = False):
+def normalize_data(data,normalization = "0-1f",b_Verbose = False):
     '''
     Normalizes a set of data based on a type of normalization, either:
         data = np.array of data to normalize
@@ -95,10 +95,8 @@ def normalize_data(data,normalization = "1-0",b_Verbose = False):
     
     if b_Verbose:
         print("normalization = "+normalization)
-        print(normalization == "1-1")
-        print(normalization == "0-1")
     new_arr = []
-    if normalization == "1-1" or normalization == "0-1":
+    if normalization == "1-1" or normalization == "0-1" or normalization == "0-1f":
         if normalization == "1-1":
             for elem in data:
                 minmax = np.max(elem.data) - np.min(elem.data)
@@ -117,6 +115,28 @@ def normalize_data(data,normalization = "1-0",b_Verbose = False):
                     print("min: "+str(np.min(elem1.data)))
                     print("max: "+str(np.max(elem1.data)))
                 new_arr.append(sht.SHGrid.from_array(elem1))
+        elif normalization == "0-1f":
+            #normalization via full set
+            max_found = 1e-12
+            min_found = 1
+            for elem in data:
+                min_c = np.min(elem.data)
+                if min_found >= min_c:
+                    min_found = min_c
+                max_c = np.max(elem.data)
+                if max_found <= max_c:
+                    max_found = max_c
+            minmax = max_found - min_found
+            if b_Verbose:
+                log("minmax for normalization: "+str(minmax))
+                log("min for normalization: "+str(min_found))
+                log("max for normalization: "+str(max_found))
+            for elem in data:
+                elem1 = (elem.data-min_found)/minmax
+                if b_Verbose:
+                    log("Type of array elem: "+str(type(elem1)))
+                new_arr.append(sht.SHGrid.from_array(elem1))
+                
     
     else:
         print("Unknown normalization. Returning original set")
@@ -212,7 +232,7 @@ def create_string_maps_arr(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose = Fa
     return arr
 
 
-def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 0.5,b_Verbose = False):
+def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 0.5,b_Verbose = False,b_normalize = False):
     '''
     Creates an array of maps and indices(2 arrays in one)
     '''
@@ -223,10 +243,11 @@ def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 
     string_maps = base_maps[0:max_i]
     staying_maps = base_maps[max_i:]
     string_maps = create_string_maps_arr(string_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose)
+    '''
     if b_Verbose:
         print(type(staying_maps))
         print(type(string_maps))
-    
+    '''
     map_arr = []
     idx_arr = []
     for i_map in staying_maps:
@@ -238,6 +259,11 @@ def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 
     for arra in string_maps:
         map_arr.append(arra[0])
         idx_arr.append(arra[1])
+    if b_normalize:
+        if b_Verbose:
+            log("Normalising")
+        map_arr = normalize_data(map_arr,"0-1f",b_Verbose)
+        
     return [np.array(map_arr),np.array(idx_arr)]
 def arr_to_batches(data,batchsize,b_Verbose = False):
     '''

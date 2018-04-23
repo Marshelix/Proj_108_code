@@ -115,21 +115,28 @@ if __name__ == "__main__":
     
     
     raw_data = bl.load_data(bl.load_filenames(datapath,"sub"))
+    usage_percentage = 0.1
+    cutoff_use = int(usage_percentage*len(raw_data))
+    raw_data = raw_data[:cutoff_use]
+    
+    
     cutoff_percentage = 0.75    #How many percent to use for training/
     cutoff = int(cutoff_percentage*len(raw_data))
     raw_data_train = raw_data[:cutoff]
     raw_data_test = raw_data[cutoff:]
-    norm_data_train = bl.normalize_data(raw_data_train,"0-1",False)
-    norm_data_test = bl.normalize_data(raw_data_test,"0-1",False)
+  
+    
+  
+    
     log("Raw Data loaded. Turning to batches")
     
-    batchsize = 10
+    batchsize = 100
     
-    batches = bl.arr_to_batches(norm_data_train,batchsize,False)
-    batches_test = bl.arr_to_batches(norm_data_test,batchsize,False)
+    batches = bl.arr_to_batches(raw_data_train,batchsize,False)
+    batches_test = bl.arr_to_batches(raw_data_test,batchsize,False)
     log("Batches generated")
     
-    smaps_per_maps = 5#settings["NN"][0]
+    smaps_per_maps = 1#settings["NN"][0]
     log("Generating "+str(smaps_per_maps) +" string maps per stringless one/type of string.")
     
     
@@ -138,7 +145,7 @@ if __name__ == "__main__":
     ###
     time_per_map = 92 #each map adds about 1.5 min
 
-    Gmus = [1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
+    Gmus = [1e-5]#,1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
     num_Gmus = len(Gmus)
     dt_gen = timedelta(seconds = time_per_map*smaps_per_maps*num_Gmus)
     log("Estimated time till completion of map generation: "+str(dt_gen))
@@ -147,25 +154,32 @@ if __name__ == "__main__":
     train_arr = []
     test_arr = []
     percentage_with_strings = 0.5
+    log("Percent of maps with strings per batch: "+str(percentage_with_strings)+"%.")
+    log("Amount of maps selected for strings per batch: "+str(percentage_with_strings*batchsize))
     t_g_start = datetime.now()
     for G_mu in Gmus:
         v = 1
         A = G_mu*v
         log("Values for string maps: (G_mu,v,A):("+str(G_mu)+","+str(v)+","+str(A)+")")
         for batch in batches:
-            stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
+            stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True)
+            #stack = bl.normalize_data(np.array(stack),"0-1",True)
             train_arr.append(stack)
         log("Training Batches generated. "+str(len(train_arr)) +" Batches in train_arr.")
         
         log(str(len(train_arr[0][0]))+" elements per train batch.")
     
         for batch in batches_test:
-            stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False)
+            stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True)
+            #stack = bl.normalize(stack,"0-1")
             test_arr.append(stack)
         log("Testing Batches generated. "+str(len(test_arr)) + " Batches in test_arr.")
         log(str(len(test_arr[0][0]))+" elements per test batch.")
     t_g_ela = datetime.now() - t_g_start
     tgela_per_map_gmu = t_g_ela/(num_Gmus*len(test_arr)*len(test_arr[0])*4)
+    
+ 
+    
     log("Time elapsed on map generation: "+str(t_g_ela))
     log("Time elapsed per map in generation: "+str(tgela_per_map_gmu))
     #got all batches set correctly
@@ -177,16 +191,22 @@ if __name__ == "__main__":
     #####
     output_size = 2
     
+    img_size = 222
+    
+    
     in_channels = 1
     out_channels_conv1 = 1
-    kernel_conv1 = 2  #Conv layer 1
+    kernel_conv1 = 3  #Conv layer 1
     out_channels_conv2 = 1
     kernel_conv2 = 2   #Conv layer 2
-    pooling_kernel_1 = 16 #Pooling layer 1
-    pooling_kernel_2 = 4  #Pooling layer 2
-    lin_input_size = 9
+    pooling_kernel_1 = 2 #Pooling layer 1
+    pooling_kernel_2 = 2  #Pooling layer 2
+    lin_input_size = in_channels*(int((((img_size - kernel_conv1 -1)/pooling_kernel_1)-kernel_conv2-1)/pooling_kernel_2)+1)**2
     lin_output_size = 2
-    net = network()
+    net = network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
+                  out_channels_conv2,
+                  kernel_conv2,
+                  pooling_kernel_1,pooling_kernel_2,lin_input_size,lin_output_size)
     print("="*10 + "NETWORK"+"="*10)
     print(net)
     print("="*27)
@@ -200,14 +220,19 @@ if __name__ == "__main__":
     
     import torch.optim as optim
     crit = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(),lr = 0.001,momentum = 0.9)
+    lr = 1e-5
+    mom = 0.9
+    log("Optimizer definition:")
+    log("le = "+str(lr)+", momentum = "+str(mom))
+    optimizer = optim.SGD(net.parameters(),lr,momentum = mom)
     log("Network and optimizers created")
+    log("_"*15)
     
     #######
     # Time till training completion
     #######
     
-    epochs = 120
+    epochs = 2000
     
     time_per_epoch_map = 0.000817  #s from test
     dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
@@ -220,7 +245,9 @@ if __name__ == "__main__":
     train_losses = []
     test_losses = []
     correctness = []
-    f,(ax1,ax2,ax3) = plt.subplots(3,1)
+    
+    pred_changed = []
+    f,(ax1,ax2,ax3,ax4) = plt.subplots(4,1)
     ###########################################################################
     #Setup end
     ###########################################################################
@@ -238,6 +265,8 @@ if __name__ == "__main__":
             cur_maps = batch[0]
             idx = batch[1]
             '''
+
+
             cur_maps,idx = train_arr[batch_id]
             
             temp_arr = []
@@ -252,22 +281,45 @@ if __name__ == "__main__":
             
             in_map = in_map.unsqueeze(1)
             in_map = in_map.float()
-            optimizer.zero_grad()
+            
             pred = net(in_map)  
             #log("Output shape: "+str(pred.data.shape)) #matrix of [batchsize,numclasses] 
-            
             loss = crit(pred.float(),classif.long())
             
+            optimizer.zero_grad()
             loss.backward()
+            #print("Loss: ")
+            #print(loss)
+        
+            #print("Parameters Gradients: ")
+            #for param in net.parameters():
+            #    print(param.grad.data.sum())
+
+            # start debugger
+            #import pdb; pdb.set_trace()
+
             optimizer.step()
+
+           
+            # Output changed?
+            #print("Prediction after step changed?: ")
+            #print((net(in_map) == pred).sum() != 0)
+            pred_changed.append(((net(in_map) == pred).sum() != 0).data)
             running_loss += loss.data[0]
+            #for param in net.parameters():
+            #    print(param.grad.data.sum())
             if int(batch_id/len(train_arr)*100) % 25 == 0:
                 log("[Epoch: "+str(epoch)+"("+str(epoch/max((epochs-1),1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:Running loss: "+str(running_loss))
+                log("[Epoch: "+str(epoch)+"("+str(epoch/max((epochs-1),1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:String maps percentage: "+str(100*classif.sum().data/len(classif))+"%")
+                # != accuracy
         train_losses.append(running_loss)
         ax1.clear()
         ax1.plot(train_losses)
         
-        ax1.set_title("Train losses every batch vs datapoints: Epoch #"+str(epoch))
+        ax1.set_title("Train losses every batch vs datapoints: Epoch #"+str(epoch)+" => " +str(running_loss))
+        ax4.clear()
+        ax4.plot(pred_changed)
+        ax4.set_title("Prediction changed after step?")
     def test(epoch):
         #Run testing for monitoring
     
@@ -282,7 +334,10 @@ if __name__ == "__main__":
             for m in cur_maps:
                 temp_arr.append(m.data)
             in_map = Variable(torch.from_numpy(np.array(temp_arr)))
+            #print("Classifier: ")
+            
             classif = Variable(torch.from_numpy(idx))
+            #print(classif)
             if use_cuda:
                 in_map = in_map.cuda()
                 classif = classif.cuda()
@@ -295,18 +350,22 @@ if __name__ == "__main__":
             classif = classif.long()
             pred_class = pred.data.max(1,keepdim = True)[1] #max index
             pred_class = pred_class.long()
+            
             correct += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
+            #print("Correctness Values: ")
+            
+            #print(pred_class.eq(classif.data.view_as(pred_class)).long())
         log("Test set accuracy: "+str(100*correct/(len(test_arr)*len(test_arr[0][0]))) + "% ,loss = "+str(test_loss_train))
         log("Correct hits: "+str(correct))
         correctness.append(100*correct/(len(test_arr)*len(test_arr[0][0])))    
         test_losses.append(test_loss_train)
         ax2.clear()
         ax2.plot(test_losses)
-        ax2.set_title("Test losses every batch: Epoch #"+str(epoch))
+        ax2.set_title("Test losses every batch: Epoch #"+str(epoch)+" => " +str(test_loss_train))
     
         ax3.clear()
         ax3.plot(correctness)
-        ax3.set_title("Accuracy @ Epoch #: "+str(epoch))      
+        ax3.set_title("Accuracy @ Epoch #: "+str(epoch)+" => " +str(100*correct/(len(test_arr)*len(test_arr[0][0]))))      
             
         plt.pause(1e-7)
         
@@ -418,3 +477,4 @@ if __name__ == "__main__":
         test_losses.append(test_loss_class)
         accuracies_per_class.append(100*accura/((upper-lower)*len(test_arr[0][0])))
             
+        plt.plot(pred_changed)
