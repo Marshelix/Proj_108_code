@@ -366,7 +366,7 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0,b_Verbose = False):
                 for y in range(0,ymax):
                     new_grid_data[x][y] =new_grid_data[x][y]+ amp*((int(y >= -x+b)-0.5))#step on line
         elif dire == 2:
-            xi = random.randint(0,xmax)
+            xi = int(xmax/2) #random.randint(0,xmax)
             
             for x in range(0,xmax):
                 new_grid_data[x][:] =new_grid_data[x][:]+ amp*((int(x >= xi)-0.5))
@@ -847,7 +847,7 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
             old_save = i
             
     return np.array(total_maps),np.array(string_maps),np.array(full_maps),np.array(sub_maps)
-#gen_multiple_maps(1000,filename,info_name,n_min = 40)
+#gen_multiple_maps(100,filename,info_name,n_min = 1040)
 t_elapsed = datetime.now() - t_start
 print("Elapsed time = "+str(t_elapsed))
 
