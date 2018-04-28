@@ -40,15 +40,35 @@ log("*"*40)
 log("="*40)
 
 class network(nn.Module):
-    def __init__(self,batch_size = 10,num_classes = 2,   #Data for input/output of lin layer
-                 in_channels = 1,out_channels_conv1 = 1,kernel_conv1 = 2,  #Conv layer 1
-                 out_channels_conv2 = 1,kernel_conv2 = 2,   #Conv layer 2
-                 pooling_kernel_1 = 16, #Pooling layer 1
-                 pooling_kernel_2 = 4,  #Pooling layer 2
-                 lin_input_size = 9,lin_output_size = 2): #lin layer
-        '''
-        define neural network
-        '''
+    #cifar
+    def __init__(self):
+        super(network, self).__init__()
+        self.conv1 = nn.Conv2d(1, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.fc1 = nn.Linear(43264, 2)
+
+    def forward(self, x):
+        
+        batsize = x.shape[0]
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(batsize, -1)
+        x = F.relu(self.fc1(x))
+        #x = F.relu(self.fc2(x))
+        #x = self.fc3(x)
+       
+        return x
+    '''
+    #def __init__(self,batch_size = 10,num_classes = 2,   #Data for input/output of lin layer
+    #             in_channels = 1,out_channels_conv1 = 1,kernel_conv1 = 2,  #Conv layer 1
+    #             out_channels_conv2 = 1,kernel_conv2 = 2,   #Conv layer 2
+    #             pooling_kernel_1 = 16, #Pooling layer 1
+    #             pooling_kernel_2 = 4,  #Pooling layer 2
+    #             lin_input_size = 9,lin_output_size = 2): #lin layer
+    '''
+        #define neural network
+    '''
         super(network,self).__init__()
         self.batch_size = batch_size
         self.num_classes = num_classes
@@ -82,7 +102,7 @@ class network(nn.Module):
         #log("="*10+"After lin"+"="*10)
         #log(x.data.shape)
         return x
-
+    '''
 
 if __name__ == "__main__":
     #detect which path to load data from
@@ -115,7 +135,7 @@ if __name__ == "__main__":
     
     
     raw_data = bl.load_data(bl.load_filenames(datapath,"sub"))
-    usage_percentage = 0.1
+    usage_percentage = 0.5
     cutoff_use = int(usage_percentage*len(raw_data))
     raw_data = raw_data[:cutoff_use]
     
@@ -143,18 +163,18 @@ if __name__ == "__main__":
     ###
     # Projected time till completion
     ###
-    time_per_map = 92 #each map adds about 1.5 min
+    time_per_map_gmu = 0.046399 #each map adds about 1.5 min
 
-    Gmus = [1e-5]#,1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
+    Gmus = [1e-5,1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
     num_Gmus = len(Gmus)
-    dt_gen = timedelta(seconds = time_per_map*smaps_per_maps*num_Gmus)
+    dt_gen = timedelta(seconds = time_per_map_gmu*smaps_per_maps*num_Gmus)
     log("Estimated time till completion of map generation: "+str(dt_gen))
     log("Estimated time of completion of map generation: "+str(datetime.now() + dt_gen))
     #Train network not just on one G_mu but multiple ones
     train_arr = []
     test_arr = []
     percentage_with_strings = 0.5
-    log("Percent of maps with strings per batch: "+str(percentage_with_strings)+"%.")
+    log("Percent of maps with strings per batch: "+str(100*percentage_with_strings)+"%.")
     log("Amount of maps selected for strings per batch: "+str(percentage_with_strings*batchsize))
     t_g_start = datetime.now()
     for G_mu in Gmus:
@@ -203,10 +223,10 @@ if __name__ == "__main__":
     pooling_kernel_2 = 2  #Pooling layer 2
     lin_input_size = in_channels*(int((((img_size - kernel_conv1 -1)/pooling_kernel_1)-kernel_conv2-1)/pooling_kernel_2)+1)**2
     lin_output_size = 2
-    net = network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
-                  out_channels_conv2,
-                  kernel_conv2,
-                  pooling_kernel_1,pooling_kernel_2,lin_input_size,lin_output_size)
+    net =network()# network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
+#                  out_channels_conv2,
+#                  kernel_conv2,
+#                  pooling_kernel_1,pooling_kernel_2,lin_input_size,lin_output_size)
     print("="*10 + "NETWORK"+"="*10)
     print(net)
     print("="*27)
@@ -232,9 +252,9 @@ if __name__ == "__main__":
     # Time till training completion
     #######
     
-    epochs = 500
+    epochs = 2000
     
-    time_per_epoch_map = 0.000817  #s from test
+    time_per_epoch_map = 0.008973  #s from test
     dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
     
     t_train_start = datetime.now()
@@ -247,7 +267,8 @@ if __name__ == "__main__":
     correctness = []
     
     pred_changed = []
-    f,(ax1,ax2,ax3,ax4) = plt.subplots(4,1)
+    fig,(ax1,ax2,ax3,ax4) = plt.subplots(4,1)
+    fig.tight_layout()
     ###########################################################################
     #Setup end
     ###########################################################################
@@ -305,7 +326,7 @@ if __name__ == "__main__":
             #print("Prediction after step changed?: ")
             #print((net(in_map) == pred).sum() != 0)
             pred_changed.append(((net(in_map) == pred).sum() != 0).data)
-            running_loss += loss.data[0]
+            running_loss += loss.item()
             #for param in net.parameters():
             #    print(param.grad.data.sum())
             if int(batch_id/len(train_arr)*100) % 25 == 0:
@@ -326,6 +347,8 @@ if __name__ == "__main__":
         net.eval()
         test_loss_train = 0
         correct = 0
+        total_test = 0  #total num tested maps
+        num_tested = 0
         for batch_id in range(len(test_arr)):
             batch = test_arr[batch_id]
             cur_maps = batch[0]
@@ -346,18 +369,18 @@ if __name__ == "__main__":
         
             pred = net(in_map)
             loss = crit(pred.float(),classif.long())
-            test_loss_train += loss.data[0]
+            test_loss_train += loss.item()
             classif = classif.long()
             pred_class = pred.data.max(1,keepdim = True)[1] #max index
             pred_class = pred_class.long()
-            
+            total_test += batchsize
             correct += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
             #print("Correctness Values: ")
-            
+            num_tested += len(cur_maps)
             #print(pred_class.eq(classif.data.view_as(pred_class)).long())
-        log("Test set accuracy: "+str(100*correct/(len(test_arr)*len(test_arr[0][0]))) + "% ,loss = "+str(test_loss_train))
-        log("Correct hits: "+str(correct))
-        correctness.append(100*correct/(len(test_arr)*len(test_arr[0][0])))    
+        log("Test set accuracy: "+str(100*correct.item()/total_test) + "% ,loss = "+str(test_loss_train))
+        log("Correct hits: "+str(correct.item())+"/"+str(total_test))
+        correctness.append(100*correct/total_test)    
         test_losses.append(test_loss_train)
         ax2.clear()
         ax2.plot(test_losses)
@@ -365,10 +388,10 @@ if __name__ == "__main__":
     
         ax3.clear()
         ax3.plot(correctness)
-        ax3.set_title("Accuracy @ Epoch #: "+str(epoch)+" => " +str(100*correct/(len(test_arr)*len(test_arr[0][0]))))      
+        ax3.set_title("Accuracy @ Epoch #: "+str(epoch)+" => " +str(100*correct.item()/num_tested))      
             
         plt.pause(1e-7)
-        
+        fig.canvas.set_window_title(str(100*epoch/epochs)+"%")
         log("="*20)
         log("Elapsed time since starting training: "+str(datetime.now() - t_train_start))
         log("Estimated time left: "+str(t_train_finish_proj - datetime.now()))
@@ -423,13 +446,14 @@ if __name__ == "__main__":
     ######
     # Saving
     ######
-    with open("Models/wModel_"+str(epochs)+".dat","wb") as f:
+    f_savename = "Models/Model_"+str(epochs)+"_"+str(num_Gmus)+"_"+str(int(100*usage_percentage))
+    with open(f_savename+"_model.dat","wb") as f:
         torch.save(net,f)
     #Save state dicts
-    with open("Models/wdict_"+str(epochs)+".dat","wb") as f:
-        torch.save(net.state_dict,f)
-    with open("Models/woptim_dict_"+str(epochs)+".dat","wb") as f:
-        torch.save(optimizer.state_dict,f)
+    with open(f_savename+"_net_dict.dat","wb") as f:
+        torch.save(net.state_dict(),f)
+    with open(f_savename+"_opti_dict.dat","wb") as f:
+        torch.save(optimizer.state_dict(),f)
     
     
     ############
@@ -449,6 +473,7 @@ if __name__ == "__main__":
         #testing is not shuffled, 
         #ie we expect the test arrays to consist of batches of only one class each
         # -> can loop through classes
+        num_tested = 0
         for batch_id in range(int(lower),int(upper)):
             batch = test_arr[batch_id]
             cur_maps = batch[0]
@@ -457,7 +482,7 @@ if __name__ == "__main__":
             for m in cur_maps:
                 temp_arr.append(m.data)
             in_map = Variable(torch.from_numpy(np.array(temp_arr)))
-            classif = Variable(torch.from_numpy(idx))
+            classif = Variable(torch.from_numpy(idx))#
             if use_cuda:
                 in_map = in_map.cuda()
                 classif = classif.cuda()
@@ -467,14 +492,18 @@ if __name__ == "__main__":
             pred = net(in_map)
         
             loss = crit(pred.float(),classif.long())
-            test_loss_class += loss.data[0]
+            test_loss_class += loss.item()
             classif = classif.long()
             pred_class = pred.data.max(1,keepdim = True)[1] #max index
             pred_class = pred_class.long()
             accura += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
-        log("Accuracy and Loss for "+str(Gmus[i])+": "+str(100*accura/((upper-lower)*len(test_arr[0][0])))+"%"+", loss = "+str(test_loss_class))
-        log("Hits: "+str(accura))
+            num_tested += len(cur_maps)
+        log("Accuracy and Loss for "+str(Gmus[i])+": "+str(100*accura.item()/(num_tested))+"%"+", loss = "+str(test_loss_class))
+        log("Hits: "+str(accura.item())+"/"+str(num_tested))
         test_losses.append(test_loss_class)
-        accuracies_per_class.append(100*accura/((upper-lower)*len(test_arr[0][0])))
-            
-        plt.plot(pred_changed)
+        accuracies_per_class.append(100*accura.item()/(num_tested))
+        
+    #TODO:
+    #Write loader for network
+    #Write logfile with all information on how thte model has been trained
+    #Output plots of specific accuracies on ax3

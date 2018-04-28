@@ -356,7 +356,7 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0,b_Verbose = False):
                 
         '''
         #pick direction
-        dire = 2#random.randint(1,4)
+        dire = random.randint(1,4)
         if dire  == 1:
             xi = random.randint(0,xmax)
             yi = random.randint(0,ymax)
