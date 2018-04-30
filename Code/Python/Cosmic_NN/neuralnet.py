@@ -143,7 +143,7 @@ if __name__ == "__main__":
     
     
     raw_data = bl.load_data(bl.load_filenames(datapath,"sub"))
-    usage_percentage = 0.3
+    usage_percentage = 0.45
     cutoff_use = int(usage_percentage*len(raw_data))
     raw_data = raw_data[:cutoff_use]
     log("Using "+str(100*usage_percentage)+"% of data overall.")
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     ###
     time_per_map_gmu = 0.046399 #each map adds about 1.5 min
 
-    Gmus = [1e-5,1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
+    Gmus = [0,1e-5,1e-6,1e-7]#,1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
     num_Gmus = len(Gmus)
     dt_gen = timedelta(seconds = time_per_map_gmu*smaps_per_maps*num_Gmus)
     log("Estimated time till completion of map generation: "+str(dt_gen))
@@ -228,10 +228,9 @@ if __name__ == "__main__":
     out_channels_conv2 = 1
     kernel_conv2 = 2   #Conv layer 2
     pooling_kernel_1 = 2 #Pooling layer 1
-    pooling_kernel_2 = 2  #Pooling layer 2
-    lin_input_size = in_channels*(int((((img_size - kernel_conv1 -1)/pooling_kernel_1)-kernel_conv2-1)/pooling_kernel_2)+1)**2
+    lin_input_size = in_channels*(int((((img_size - kernel_conv1 -1)/pooling_kernel_1)-kernel_conv2-1)/pooling_kernel_1)+1)**2
     lin_output_size = 2
-    net =network()# network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
+    net =network(num_classes=num_Gmus)# network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
 #                  out_channels_conv2,
 #                  kernel_conv2,
 #                  pooling_kernel_1,pooling_kernel_2,lin_input_size,lin_output_size)
@@ -250,9 +249,10 @@ if __name__ == "__main__":
     crit = nn.CrossEntropyLoss()
     lr = 1e-5
     mom = 0.9
+    wd = 1e-3
     log("Optimizer definition:")
-    log("le = "+str(lr)+", momentum = "+str(mom))
-    optimizer = optim.SGD(net.parameters(),lr,momentum = mom)
+    log("lr = "+str(lr)+", momentum = "+str(mom)+", weight decay(l2) = "+str(wd))
+    optimizer = optim.SGD(net.parameters(),lr,momentum = mom,weight_decay=wd)
     log("Network and optimizers created")
     log("#"*30)
     
@@ -260,7 +260,7 @@ if __name__ == "__main__":
     # Time till training completion
     #######
     
-    epochs = 1000
+    epochs = 1500
     
     time_per_epoch_map = 0.003597  #s from test
     dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
@@ -583,6 +583,7 @@ if __name__ == "__main__":
     log("Optimizer: ")
     log("lr = "+str(lr))
     log("Momentum = "+str(mom))
+    log("L2 param = "+str(wd))
     log("Program settings: ")
     log("Saving model = "+str(will_save_model))
     log("Batchsize = "+str(batchsize))

@@ -22,6 +22,7 @@ from Setup import setup
 import pickle
 from datetime import datetime
 import pyshtools as sht
+import math
 
 if __name__ == "__main__":
     #detect which path to load data from
@@ -222,7 +223,8 @@ def create_string_maps_arr(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose = Fa
     for cur_map in base_maps:
         for i in range(num_smaps_per_map):
             _,smap = add_strings(cur_map,G_mu,V,1,None,None,Amp) #string map that is not saved to file
-            val = (smap,1)#replace 1 with G_mu
+            idx = 0 if G_mu is 0 else (-math.log10(G_mu)-4)    #either ind = 0 for G_mu = 0, 1 for 1e-5, 2 for 1e-6, etc
+            val = (smap,idx)#replace 1 with G_mu
             if b_Verbose:
                 print(type(val))
             arr.append(val)
@@ -240,9 +242,9 @@ def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 
     max_i = int(percentage_string* len(base_maps))-1
     if b_Verbose:
         print("Max_i = "+str(max_i))
-    string_maps = base_maps[0:max_i]
-    staying_maps = base_maps[max_i:]
-    string_maps = create_string_maps_arr(string_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose)
+    
+    #staying_maps = base_maps[max_i:]
+    string_maps = create_string_maps_arr(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose)
     '''
     if b_Verbose:
         print(type(staying_maps))
@@ -250,9 +252,10 @@ def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 
     '''
     map_arr = []
     idx_arr = []
-    for i_map in staying_maps:
-        map_arr.append(i_map.data)
-        idx_arr.append(0)
+    
+    #for i_map in staying_maps:
+    #    map_arr.append(i_map.data)
+    #    idx_arr.append(0)
     #join stacks
     if b_Verbose:
         print("Appending String maps")
@@ -263,7 +266,7 @@ def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 
         if b_Verbose:
             log("Normalising")
         map_arr = normalize_data(map_arr,"0-1f",b_Verbose)
-        
+    
     return [np.array(map_arr),np.array(idx_arr)]
 def arr_to_batches(data,batchsize,b_Verbose = False):
     '''
