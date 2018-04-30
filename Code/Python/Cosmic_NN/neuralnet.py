@@ -41,12 +41,16 @@ log("="*40)
 
 class network(nn.Module):
     #cifar
-    def __init__(self):
+    def __init__(self,
+                 in_channels = 1,out_channels_conv1 = 6,kernel_conv1 = 5,
+                 out_channels_conv2 = 16,kernel_conv2 = 5,
+                 pooling_kernel = 2,
+                 lin_input_size = 43264,num_classes = 2):
         super(network, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(43264, 2)
+        self.conv1 = nn.Conv2d(in_channels, out_channels_conv1, kernel_conv1)
+        self.pool = nn.MaxPool2d(pooling_kernel, pooling_kernel)
+        self.conv2 = nn.Conv2d(out_channels_conv1, out_channels_conv2, kernel_conv2)
+        self.fc1 = nn.Linear(lin_input_size,num_classes)
 
     def forward(self, x):
         
@@ -106,6 +110,10 @@ class network(nn.Module):
 
 if __name__ == "__main__":
     #detect which path to load data from
+    will_save_model =False#for saving later
+    print_freq = 50 #%. Output information during training when print_freq amounts are reached
+    
+    log("Saving system run = "+str(will_save_model))
     cur_os = platform.system()
     log("Starting")
     log("OS detected: "+cur_os)
@@ -135,16 +143,16 @@ if __name__ == "__main__":
     
     
     raw_data = bl.load_data(bl.load_filenames(datapath,"sub"))
-    usage_percentage = 0.5
+    usage_percentage = 0.3
     cutoff_use = int(usage_percentage*len(raw_data))
     raw_data = raw_data[:cutoff_use]
+    log("Using "+str(100*usage_percentage)+"% of data overall.")
     
-    
-    cutoff_percentage = 0.75    #How many percent to use for training/
+    cutoff_percentage = 0.65    #How many percent to use for training/
     cutoff = int(cutoff_percentage*len(raw_data))
     raw_data_train = raw_data[:cutoff]
     raw_data_test = raw_data[cutoff:]
-  
+    log("Using "+str(100*cutoff_percentage)+"% of data for training.")
     
   
     
@@ -252,9 +260,9 @@ if __name__ == "__main__":
     # Time till training completion
     #######
     
-    epochs = 2000
+    epochs = 1000
     
-    time_per_epoch_map = 0.008973  #s from test
+    time_per_epoch_map = 0.003597  #s from test
     dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
     
     t_train_start = datetime.now()
@@ -265,9 +273,13 @@ if __name__ == "__main__":
     train_losses = []
     test_losses = []
     correctness = []
+    # correctness_per_class: array of arrays for all classes
+    correctness_per_class = []
+    for i in range(num_Gmus):
+        correctness_per_class.append([])
     
     pred_changed = []
-    fig,(ax1,ax2,ax3,ax4) = plt.subplots(4,1)
+    fig,(ax1,ax2,ax3,ax4,ax5) = plt.subplots(5,1)
     fig.tight_layout()
     ###########################################################################
     #Setup end
@@ -329,7 +341,7 @@ if __name__ == "__main__":
             running_loss += loss.item()
             #for param in net.parameters():
             #    print(param.grad.data.sum())
-            if int(batch_id/len(train_arr)*100) % 25 == 0:
+            if int(batch_id/len(train_arr)*100) % print_freq == 0:
                 log("[Epoch: "+str(epoch)+"("+str(epoch/max((epochs-1),1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:Running loss: "+str(running_loss))
                 #log("[Epoch: "+str(epoch)+"("+str(epoch/max((epochs-1),1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:String maps percentage: "+str(100*classif.sum().data/len(classif))+"%")
                 # != accuracy
@@ -339,8 +351,8 @@ if __name__ == "__main__":
         
         ax1.set_title("Train losses every batch vs datapoints: Epoch #"+str(epoch)+" => " +str(running_loss))
         ax4.clear()
-        ax4.plot(pred_changed)
-        ax4.set_title("Prediction changed after step?")
+        ax4.plot(train_losses/np.max(train_losses))
+        ax4.set_title("Relative change in losses")
     def test(epoch):
         #Run testing for monitoring
     
@@ -388,14 +400,72 @@ if __name__ == "__main__":
     
         ax3.clear()
         ax3.plot(correctness)
-        ax3.set_title("Accuracy @ Epoch #: "+str(epoch)+" => " +str(100*correct.item()/num_tested))      
-            
+        ax3.set_title("Accuracy @ Epoch #: "+str(epoch)+" => " +str(100*correct.item()/num_tested)+"%")      
+        
+        ax4.plot(test_losses/np.max(test_losses))
         plt.pause(1e-7)
+        
+        calc_accuracy_per_class(epoch)  #calculate accuracies for each class and plot
+        
         fig.canvas.set_window_title(str(100*epoch/epochs)+"%")
         log("="*20)
         log("Elapsed time since starting training: "+str(datetime.now() - t_train_start))
         log("Estimated time left: "+str(t_train_finish_proj - datetime.now()))
         log("="*20)
+    
+    def calc_accuracy_per_class(epoch):
+        '''
+        Calculates the accuracies for each class like the testing algo
+        Plots to ax5
+        '''
+        batches_per_class = len(test_arr)/num_Gmus
+        net.eval()#just in case
+        for i in range(num_Gmus):
+            '''
+            select the ith G_mu
+            '''
+            accura = 0
+            test_loss_class = 0
+            lower = i*batches_per_class
+            upper = (i+1)*batches_per_class
+            #testing is not shuffled, 
+            #ie we expect the test arrays to consist of batches of only one class each
+            # -> can loop through classes
+            num_tested = 0
+            for batch_id in range(int(lower),int(upper)):
+                batch = test_arr[batch_id]
+                cur_maps = batch[0]
+                idx = batch[1]
+                temp_arr = []
+                for m in cur_maps:
+                    temp_arr.append(m.data)
+                in_map = Variable(torch.from_numpy(np.array(temp_arr)))
+                classif = Variable(torch.from_numpy(idx))
+                if use_cuda:
+                    in_map = in_map.cuda()
+                    classif = classif.cuda()
+                in_map = in_map.unsqueeze(1)
+                in_map = in_map.float()
+        
+                pred = net(in_map)
+                
+                loss = crit(pred.float(),classif.long())
+                test_loss_class += loss.item()
+                classif = classif.long()
+                pred_class = pred.data.max(1,keepdim = True)[1] #max index
+                pred_class = pred_class.long()
+                accura += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
+                num_tested += len(cur_maps)
+            log("Accuracy and Loss for "+str(Gmus[i])+": "+str(100*accura.item()/(num_tested))+"%"+", loss = "+str(test_loss_class))
+            log("Hits: "+str(accura.item())+"/"+str(num_tested))
+            correctness_per_class[i].append(100*accura.item()/(num_tested))
+        ax5.clear()
+        for elem in correctness_per_class:    
+            ax5.plot(elem)
+        ax5.set_title("Accuracies per class")
+        ax5.legend([str(x) for x in Gmus],loc = 'upper center',bbox_to_anchor = (0.5,1.01),ncol = num_Gmus)  #legend next to plot
+        plt.pause(1e-7)
+    
     
     for epoch in range(epochs):
         train(epoch)
@@ -446,19 +516,23 @@ if __name__ == "__main__":
     ######
     # Saving
     ######
-    f_savename = "Models/Model_"+str(epochs)+"_"+str(num_Gmus)+"_"+str(int(100*usage_percentage))
-    with open(f_savename+"_model.dat","wb") as f:
-        torch.save(net,f)
-    #Save state dicts
-    with open(f_savename+"_net_dict.dat","wb") as f:
-        torch.save(net.state_dict(),f)
-    with open(f_savename+"_opti_dict.dat","wb") as f:
-        torch.save(optimizer.state_dict(),f)
+    if will_save_model:
+        f_savename = "Models/Model_"+str(epochs)+"_"+str(num_Gmus)+"_"+str(int(100*usage_percentage))
+        with open(f_savename+"_model.dat","wb") as f:
+            torch.save(net,f)
+        #Save state dicts
+        with open(f_savename+"_net_dict.dat","wb") as f:
+            torch.save(net.state_dict(),f)
+        with open(f_savename+"_opti_dict.dat","wb") as f:
+            torch.save(optimizer.state_dict(),f)
+        fig.savefig(f_savename + "_figures.png")
     
     
     ############
     #Accuracy for different classes
+    #Already tested in test above by now
     ############
+    '''
     batches_per_class = len(test_arr)/num_Gmus
     net.eval()
 
@@ -502,8 +576,22 @@ if __name__ == "__main__":
         log("Hits: "+str(accura.item())+"/"+str(num_tested))
         test_losses.append(test_loss_class)
         accuracies_per_class.append(100*accura.item()/(num_tested))
-        
+    '''
+    log("*"*30)
+    log("Run data: ")
+    log("Epochs = "+str(epochs))
+    log("Optimizer: ")
+    log("lr = "+str(lr))
+    log("Momentum = "+str(mom))
+    log("Program settings: ")
+    log("Saving model = "+str(will_save_model))
+    log("Batchsize = "+str(batchsize))
+    log("Using "+str(100*usage_percentage)+"% of input data")
+    log("String percentage = "+str(100*percentage_with_strings)+"%")
+    log("Amount of string classes = "+str(num_Gmus))
+    log("Amount of string implanted maps from base maps= "+str(smaps_per_maps))
+    log("Split of training data/test data: "+str(100*cutoff_percentage)+"%/"+str(100*(1-cutoff_percentage))+"%")
+    log("*"*30)
+            
     #TODO:
     #Write loader for network
-    #Write logfile with all information on how thte model has been trained
-    #Output plots of specific accuracies on ax3

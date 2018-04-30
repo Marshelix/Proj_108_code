@@ -222,7 +222,7 @@ def create_string_maps_arr(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose = Fa
     for cur_map in base_maps:
         for i in range(num_smaps_per_map):
             _,smap = add_strings(cur_map,G_mu,V,1,None,None,Amp) #string map that is not saved to file
-            val = (smap,1)
+            val = (smap,1)#replace 1 with G_mu
             if b_Verbose:
                 print(type(val))
             arr.append(val)
