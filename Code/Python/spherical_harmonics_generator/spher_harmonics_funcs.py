@@ -60,166 +60,6 @@ password = settings["Email"][3]
 server = settings["Email"][2]
 
 bot = email_bot(settings["Email"][0],settings["Email"][1],server,password,username,int(settings["Email"][5]))
-
-'''
-
-def Plm_save(l,m,theta):
-    
-    SCIPY IMPLEMENTATION
-    
-    
-    theta : Angles to compute the polynomials for
-    l: degree of the polynomial
-    m: order of the polynomial    
-
-
-    filename = "leg_l_"+str(l)+"_m_"+str(m)+".dat"
-    cols = [str(m)]
-    index = theta
-
-
-    df = pd.DataFrame(0,index = index, columns = cols)
-    print(datapath_leg+filename)
-    if not os.path.exists(datapath_leg+filename) or os.path.getsize(datapath_leg+filename) == 0:
-        x = np.cos(theta)
-        gen_time_start = time.time()
-        pl_vals = func_base.lpmv(m,l,x)
-        gen_time_elapsed = time.time() - gen_time_start
-        print("Generation of data took : "+repr(gen_time_elapsed))
-        df = pd.DataFrame(pl_vals,index = index, columns = cols)
-        file_time_start = time.time()
-        file = open(datapath_leg+filename,"wb")
-        print("File opened")
-        pickle.dump(df,file)
-        print("file written to")
-        file.close()
-        file_time_elapsed = time.time()-file_time_start
-        print("File generation took : "+repr(file_time_elapsed))
-    else:
-         if os.path.getsize(datapath_leg+filename) > 0:
-            print("Loading map from file.")
-            file = open(datapath_leg+filename,"rb")
-            df2 = pickle.load(file)
-            file.close()
-            same_angles_check = len(index) == len(df2.index)
-            if same_angles_check:
-                for i in range(len(df2.index)):
-                    same_angles_check = same_angles_check and df2.index[i] == index[i]
-            if same_angles_check:
-                print("File loaded. Same angles.")
-                df = df2
-    print("==================")
-    return df
-                
-
-theta = np.linspace(0,2*np.pi,300)
-from scipy.misc import factorial
-def ylm_builtin(l,m,theta,phi):
-    prefac = np.sqrt((2*l+1)/2*factorial(l-m)/factorial(l+m))
-    print(prefac)
-    legend = func_base.lpmv(m,l,np.cos(theta)) # 1*len(theta) array
-    print("Legend")
-    print(legend)
-    exponents = [m*1j*x for x in phi]
-    expo = np.exp(exponents)
-    print("Expo")
-    print(expo)
-    values = prefac * np.outer(legend,expo)
-    
-    cols = [str(x) for x in phi]
-    ind = theta
-    df = pd.DataFrame(values,index = ind,columns = cols)
-    return df
-
-def ylm_load(l,m,theta,phi):
-
-    prefac = np.sqrt((2*l+1)/2*factorial(l-m)/factorial(l+m))
-    print(prefac)
-    legend = Plm_save(l,m,theta)    #checks if file exists, generates and saves it if not.
-    leg_data = legend[str(m)]
-    print("Legend load:")
-    print(leg_data)
-    exponents = [m*1j*x for x in phi]
-    expo = np.exp(exponents)
-    print("Expo load: ")
-    print(expo)
-    values = prefac * np.outer(leg_data,expo)
-    
-    cols = [str(x) for x in phi]
-    ind = theta
-    df = pd.DataFrame(values,index = ind,columns = cols)
-    return df
-
-phi = np.linspace(0,np.pi,3000)
-l = m = 85
-start_time_builtin = time.time()
-df1 = ylm_builtin(l,m,theta,phi)
-time_elapsed_builtin = time.time() - start_time_builtin
-print(repr(time_elapsed_builtin))
-start_time_load = time.time()
-df2 = ylm_load(l,m,theta,phi)
-time_elapsed_load = time.time() - start_time_load
-print(repr(time_elapsed_load))
-theta,phi = np.meshgrid(theta,phi)
-data = func_base.sph_harm(l,m,theta,phi)
-print(type(data))
-print(data.shape)
-
-ylm = pd.DataFrame(func_base.sph_harm(l,m,theta,phi),index = theta, columns = [str(x) for x in phi])
-
-known_vals = []
-def check_finiteness(l,m,theta):
-    
-    Check the file for the Plm (l,m)
-    if data is not finite everywhere, print l,m
-    
-    df = Plm_save(l,m,theta)
-    known = False
-    for colname in df:
-        for elem in df[colname]:
-            if known:
-                return -1
-            if not np.isfinite(elem):
-                print("(l,m) = ("+str(l)+","+str(m)+")")
-                known = True
-                known_vals.append((l,m))
-                print("==========================")
-
-ls = range(0,501)
-filenum = sum([2*l+1 for l in ls])
-i = 1
-for l in ls:
-    for m in range(-l,l+1):
-        print(type(l))
-        print(type(m))
-        check_finiteness(l,m,theta)
-        print(str(100*i/filenum)+"%")
-        i = i+1
-print("Found "+str(len(known_vals))+" values: ")
-for elem in known_vals:
-    print(elem)
-np.savetxt(datapath_leg+"known_vals.txt",known_vals,delimiter = ",")
-
-
-
-def Plm_pyshtools_asDF(lmax, theta):
-    x = np.cos(theta)
-    print(x)
-    print(type(x))
-    if type(x) == np.ndarray:
-        plms = []
-        print("element is vector")
-        for elem in x:
-            plm = sht.legendre.PlmON(lmax,elem)
-            plms.append(plm)
-        return plms
-    else:
-        plm = sht.legendre.PlmON(lmax,x)
-    print(type(plm))
-    print(plm)
-    print(plm.shape)
-    return plm
-'''
 def load_spectra_from_file(filename,T0 = 2.725):
     ''' 
     Load a .dat file as a csv, delimiter = "    "
@@ -333,17 +173,22 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0,b_Verbose = False):
         
         
     '''
+    if v is not 1:
+        gamma = 1/np.sqrt(1-v**2)
     amp = 0
     if A != 0:
-        amp = 8*np.pi*A
+        amp = 8*np.pi*A*gamma
     else:
-        amp = 8*np.pi*v*G_mu
+        amp = 8*np.pi*v*G_mu*gamma
     if A != G_mu*v:
         v = A/G_mu#force velocity to fit for now
     grid_dim = grid.data.shape
+    
     xmax = grid_dim[0]
     ymax = grid_dim[1]
-
+    xmid = xmax/2
+    ymid = ymax/2
+    rad = int(0.1*xmax)#10% max size
     new_grid_data = np.zeros(shape = (xmax,ymax))
     if b_Verbose:
         print("Amplitude: "+str(amp))
@@ -356,29 +201,30 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0,b_Verbose = False):
                 
         '''
         #pick direction
+        #Strings have to be centered at the moment for testing
         dire = random.randint(1,4)
         if dire  == 1:
-            xi = random.randint(0,xmax)
-            yi = random.randint(0,ymax)
+            xi = random.randint(xmid-rad,xmid+rad)
+            yi = random.randint(ymid-rad,ymid+rad)
             b = yi+xi
             
             for x in range(0,xmax):
                 for y in range(0,ymax):
                     new_grid_data[x][y] =new_grid_data[x][y]+ amp*((int(y >= -x+b)-0.5))#step on line
         elif dire == 2:
-            xi = int(xmax/2) #random.randint(0,xmax)
+            xi = random.randint(xmid-rad,xmid+rad)
             
             for x in range(0,xmax):
                 new_grid_data[x][:] =new_grid_data[x][:]+ amp*((int(x >= xi)-0.5))
         elif dire == 3:
-            xi = random.randint(0,xmax)
-            yi = random.randint(0,ymax)
+            xi = random.randint(xmid-rad,xmid+rad)
+            yi = random.randint(ymid-rad,ymid+rad)
             b = yi-xi
             for x in range(0,xmax):
                 for y in range(0,ymax):
                     new_grid_data[x][y] =new_grid_data[x][y]+ amp*((int(y >= x+b)-0.5))#step on line
         elif dire == 4:
-            yi = random.randint(0,ymax)
+            yi = random.randint(ymid-rad,ymid+rad)
             for y in range(0,ymax):
                 new_grid_data[:][y] = new_grid_data[:][y]+ amp*((int(y >= yi)-0.5))
         
