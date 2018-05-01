@@ -142,7 +142,7 @@ if __name__ == "__main__":
     #####
     
     
-    raw_data = bl.load_data(bl.load_filenames(datapath,"sub"))
+    raw_data = bl.load_data(bl.load_filenames(datapath,"sub"),i_multiplier = 10)
     usage_percentage = 0.3
     cutoff_use = int(usage_percentage*len(raw_data))
     add_test_data = raw_data[int((len(raw_data)-cutoff_use)/2):] #can use later for testing
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     batches_test = bl.arr_to_batches(raw_data_test,batchsize,False)
     log("Batches generated")
     
-    smaps_per_maps = 1#settings["NN"][0]
+    smaps_per_maps = 5#settings["NN"][0]
     log("Generating "+str(smaps_per_maps) +" string maps per stringless one/type of string.")
     
     
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     ###
     time_per_map_gmu = 0.046399 #each map adds about 1.5 min
 
-    Gmus = [0,1e-5,1e-6]#5*1e-7,1e-7]#,1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
+    Gmus = [0,1e-5,1e-6]#1e-7]#1e-8,1e-9,1e-10,1e-11]
     num_Gmus = len(Gmus)
     dt_gen = timedelta(seconds = time_per_map_gmu*smaps_per_maps*num_Gmus)
     log("Estimated time till completion of map generation: "+str(dt_gen))
@@ -189,7 +189,7 @@ if __name__ == "__main__":
     log("Amount of maps selected for strings per batch: "+str(percentage_with_strings*batchsize))
     t_g_start = datetime.now()
     for G_mu in Gmus:
-        v = 1
+        v = 1e-2
         A = G_mu*v
         log("Values for string maps: (G_mu,v,A):("+str(G_mu)+","+str(v)+","+str(A)+")")
         for batch in batches:
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     # Time till training completion
     #######
     
-    epochs = 1500
+    epochs = 1600
     
     time_per_epoch_map = 0.003597  #s from test
     dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment

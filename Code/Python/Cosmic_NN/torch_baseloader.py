@@ -66,7 +66,7 @@ def load_filenames(path, specifier = None,b_Verbose = False):
             print(os.listdir(path))
         return [path + x for x in os.listdir(path)]
 
-def load_data(filenames,b_Verbose = False):
+def load_data(filenames,b_Verbose = False,i_multiplier = 1):
     '''
     return: all files in datapath
     '''
@@ -77,8 +77,9 @@ def load_data(filenames,b_Verbose = False):
             print(name + " opened.")
         map_arr = pickle.load(f)
         for m in map_arr:
-            #array of
-            total_arr.append(m)
+            #array of sht.SHGrid
+            new_map = sht.SHGrid.from_array(m.data*i_multiplier)
+            total_arr.append(new_map)
         f.close()
         if b_Verbose:
             print(name + " closed.")
