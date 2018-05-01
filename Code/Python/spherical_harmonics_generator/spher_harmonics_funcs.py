@@ -333,17 +333,22 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0,b_Verbose = False):
         
         
     '''
+    if v is not 1:
+        gamma = 1/np.sqrt(1-v**2)
     amp = 0
     if A != 0:
-        amp = 8*np.pi*A
+        amp = 8*np.pi*A#*gamma
     else:
-        amp = 8*np.pi*v*G_mu
+        amp = 8*np.pi*v*G_mu#*gamma
     if A != G_mu*v:
         v = A/G_mu#force velocity to fit for now
     grid_dim = grid.data.shape
+    
     xmax = grid_dim[0]
     ymax = grid_dim[1]
-
+    xmid = xmax/2
+    ymid = ymax/2
+    rad = int(0.1*xmax)#10% max size
     new_grid_data = np.zeros(shape = (xmax,ymax))
     if b_Verbose:
         print("Amplitude: "+str(amp))
@@ -356,29 +361,30 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0,b_Verbose = False):
                 
         '''
         #pick direction
+        #Strings have to be centered at the moment for testing
         dire = random.randint(1,4)
         if dire  == 1:
-            xi = random.randint(0,xmax)
-            yi = random.randint(0,ymax)
+            xi = random.randint(xmid-rad,xmid+rad)
+            yi = random.randint(ymid-rad,ymid+rad)
             b = yi+xi
             
             for x in range(0,xmax):
                 for y in range(0,ymax):
                     new_grid_data[x][y] =new_grid_data[x][y]+ amp*((int(y >= -x+b)-0.5))#step on line
         elif dire == 2:
-            xi = int(xmax/2) #random.randint(0,xmax)
+            xi = random.randint(xmid-rad,xmid+rad)
             
             for x in range(0,xmax):
                 new_grid_data[x][:] =new_grid_data[x][:]+ amp*((int(x >= xi)-0.5))
         elif dire == 3:
-            xi = random.randint(0,xmax)
-            yi = random.randint(0,ymax)
+            xi = random.randint(xmid-rad,xmid+rad)
+            yi = random.randint(ymid-rad,ymid+rad)
             b = yi-xi
             for x in range(0,xmax):
                 for y in range(0,ymax):
                     new_grid_data[x][y] =new_grid_data[x][y]+ amp*((int(y >= x+b)-0.5))#step on line
         elif dire == 4:
-            yi = random.randint(0,ymax)
+            yi = random.randint(ymid-rad,ymid+rad)
             for y in range(0,ymax):
                 new_grid_data[:][y] = new_grid_data[:][y]+ amp*((int(y >= yi)-0.5))
         

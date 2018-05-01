@@ -110,7 +110,7 @@ class network(nn.Module):
 
 if __name__ == "__main__":
     #detect which path to load data from
-    will_save_model =False#for saving later
+    will_save_model =True#for saving later
     print_freq = 50 #%. Output information during training when print_freq amounts are reached
     
     log("Saving system run = "+str(will_save_model))
@@ -143,7 +143,10 @@ if __name__ == "__main__":
     
     
     raw_data = bl.load_data(bl.load_filenames(datapath,"sub"))
-    usage_percentage = 0.45
+    usage_percentage = 0.3
+    cutoff_use = int(usage_percentage*len(raw_data))
+    add_test_data = raw_data[int((len(raw_data)-cutoff_use)/2):] #can use later for testing
+    raw_data = raw_data[:int((len(raw_data)-cutoff_use)/2)]
     cutoff_use = int(usage_percentage*len(raw_data))
     raw_data = raw_data[:cutoff_use]
     log("Using "+str(100*usage_percentage)+"% of data overall.")
@@ -173,7 +176,7 @@ if __name__ == "__main__":
     ###
     time_per_map_gmu = 0.046399 #each map adds about 1.5 min
 
-    Gmus = [0,1e-5,1e-6,1e-7]#,1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
+    Gmus = [0,1e-5,1e-6]#5*1e-7,1e-7]#,1e-6,1e-7,1e-8,1e-9,1e-10,1e-11]
     num_Gmus = len(Gmus)
     dt_gen = timedelta(seconds = time_per_map_gmu*smaps_per_maps*num_Gmus)
     log("Estimated time till completion of map generation: "+str(dt_gen))
@@ -181,7 +184,7 @@ if __name__ == "__main__":
     #Train network not just on one G_mu but multiple ones
     train_arr = []
     test_arr = []
-    percentage_with_strings = 0.5
+    percentage_with_strings = 1
     log("Percent of maps with strings per batch: "+str(100*percentage_with_strings)+"%.")
     log("Amount of maps selected for strings per batch: "+str(percentage_with_strings*batchsize))
     t_g_start = datetime.now()
@@ -249,7 +252,7 @@ if __name__ == "__main__":
     crit = nn.CrossEntropyLoss()
     lr = 1e-5
     mom = 0.9
-    wd = 1e-3
+    wd = 1e-2
     log("Optimizer definition:")
     log("lr = "+str(lr)+", momentum = "+str(mom)+", weight decay(l2) = "+str(wd))
     optimizer = optim.SGD(net.parameters(),lr,momentum = mom,weight_decay=wd)
@@ -279,7 +282,7 @@ if __name__ == "__main__":
         correctness_per_class.append([])
     
     pred_changed = []
-    fig,(ax1,ax2,ax3,ax4,ax5) = plt.subplots(5,1)
+    fig,(ax1,ax2,ax3,ax4,ax5,ax6) = plt.subplots(6,1)
     fig.tight_layout()
     ###########################################################################
     #Setup end
@@ -403,6 +406,10 @@ if __name__ == "__main__":
         ax3.set_title("Accuracy @ Epoch #: "+str(epoch)+" => " +str(100*correct.item()/num_tested)+"%")      
         
         ax4.plot(test_losses/np.max(test_losses))
+        #difference in relative changes
+        ax5.clear()
+        ax5.plot((test_losses/np.max(test_losses) - train_losses/np.max(train_losses)))
+        ax5.set_title("Difference in relative losses @ Epoch #"+str(epoch))
         plt.pause(1e-7)
         
         calc_accuracy_per_class(epoch)  #calculate accuracies for each class and plot
@@ -410,7 +417,7 @@ if __name__ == "__main__":
         fig.canvas.set_window_title(str(100*epoch/epochs)+"%")
         log("="*20)
         log("Elapsed time since starting training: "+str(datetime.now() - t_train_start))
-        log("Estimated time left: "+str(t_train_finish_proj - datetime.now()))
+        log("Estimated time left: "+str((datetime.now() - t_train_start)*(epochs/max(epoch,1)-1)))
         log("="*20)
     
     def calc_accuracy_per_class(epoch):
@@ -459,11 +466,11 @@ if __name__ == "__main__":
             log("Accuracy and Loss for "+str(Gmus[i])+": "+str(100*accura.item()/(num_tested))+"%"+", loss = "+str(test_loss_class))
             log("Hits: "+str(accura.item())+"/"+str(num_tested))
             correctness_per_class[i].append(100*accura.item()/(num_tested))
-        ax5.clear()
+        ax6.clear()
         for elem in correctness_per_class:    
-            ax5.plot(elem)
-        ax5.set_title("Accuracies per class")
-        ax5.legend([str(x) for x in Gmus],loc = 'upper center',bbox_to_anchor = (0.5,1.01),ncol = num_Gmus)  #legend next to plot
+            ax6.plot(elem)
+        ax6.set_title("Accuracies per class")
+        ax6.legend([str(x) for x in Gmus],loc = 'upper center',bbox_to_anchor = (0.5,1.01),ncol = num_Gmus)  #legend next to plot
         plt.pause(1e-7)
     
     
@@ -482,37 +489,8 @@ if __name__ == "__main__":
     ######
     #Testing
     ######
-    test(epochs)
-    '''
-    net.eval()
-    test_loss = 0
-    correct = 0
-    for batch_id in range(len(test_arr)):
-        batch = test_arr[batch_id]
-        cur_maps = batch[0]
-        idx = batch[1]
-        temp_arr = []
-        for m in cur_maps:
-            temp_arr.append(m.data)
-        in_map = Variable(torch.from_numpy(np.array(temp_arr)))
-        classif = Variable(torch.from_numpy(idx))
-        if use_cuda:
-            in_map = in_map.cuda()
-            classif = classif.cuda()
-        in_map = in_map.unsqueeze(1)
-        in_map = in_map.float()
-        
-        pred = net(in_map)
-        
-        loss = F.cross_entropy(pred.float(),classif.long())
-        test_loss += loss.data[0]
-        classif = classif.long()
-        pred_class = pred.data.max(1,keepdim = True)[1] #max index
-        pred_class = pred_class.long()
-        correct += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
-    log("Test set accuracy: "+str(100*correct/(len(test_arr)*len(test_arr[0][0]))) + "% ,loss = "+str(test_loss))
-    '''
-        
+    #test(epochs)
+
     ######
     # Saving
     ######
@@ -527,56 +505,6 @@ if __name__ == "__main__":
             torch.save(optimizer.state_dict(),f)
         fig.savefig(f_savename + "_figures.png")
     
-    
-    ############
-    #Accuracy for different classes
-    #Already tested in test above by now
-    ############
-    '''
-    batches_per_class = len(test_arr)/num_Gmus
-    net.eval()
-
-    
-    accuracies_per_class = []
-    test_losses = []
-    for i in range(num_Gmus):
-        accura = 0
-        test_loss_class = 0
-        lower = i*batches_per_class
-        upper = (i+1)*batches_per_class
-        #testing is not shuffled, 
-        #ie we expect the test arrays to consist of batches of only one class each
-        # -> can loop through classes
-        num_tested = 0
-        for batch_id in range(int(lower),int(upper)):
-            batch = test_arr[batch_id]
-            cur_maps = batch[0]
-            idx = batch[1]
-            temp_arr = []
-            for m in cur_maps:
-                temp_arr.append(m.data)
-            in_map = Variable(torch.from_numpy(np.array(temp_arr)))
-            classif = Variable(torch.from_numpy(idx))#
-            if use_cuda:
-                in_map = in_map.cuda()
-                classif = classif.cuda()
-            in_map = in_map.unsqueeze(1)
-            in_map = in_map.float()
-        
-            pred = net(in_map)
-        
-            loss = crit(pred.float(),classif.long())
-            test_loss_class += loss.item()
-            classif = classif.long()
-            pred_class = pred.data.max(1,keepdim = True)[1] #max index
-            pred_class = pred_class.long()
-            accura += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
-            num_tested += len(cur_maps)
-        log("Accuracy and Loss for "+str(Gmus[i])+": "+str(100*accura.item()/(num_tested))+"%"+", loss = "+str(test_loss_class))
-        log("Hits: "+str(accura.item())+"/"+str(num_tested))
-        test_losses.append(test_loss_class)
-        accuracies_per_class.append(100*accura.item()/(num_tested))
-    '''
     log("*"*30)
     log("Run data: ")
     log("Epochs = "+str(epochs))
@@ -593,6 +521,32 @@ if __name__ == "__main__":
     log("Amount of string implanted maps from base maps= "+str(smaps_per_maps))
     log("Split of training data/test data: "+str(100*cutoff_percentage)+"%/"+str(100*(1-cutoff_percentage))+"%")
     log("*"*30)
-            
+    
+    
+    def test_new_item(x):
+        '''
+        Returns the predicted class of x, where x is either a map or a vector of maps
+        '''
+        if isinstance(x,sht.SHGrid):
+            x = np.array([x])
+        if not isinstance(x,np.array):
+            log("Abort testing: Unknown input class" + str(x.__class__.__name__))
+            return 0
+        temp_var = []
+        for m in x:
+            temp_var.append(x.data)
+        maps = Variable(torch.from_numpy(temp_var))
+        if use_cuda:
+            maps = maps.cuda()
+        maps = maps.unsqueeze(1)
+        maps = maps.float()
+        pred = net(maps)
+        pred_class = pred.data.max(1,keepdim = True)[1]
+        pred_class = pred_class.long()
+        return pred_class
+        
+        
+                    
     #TODO:
     #Write loader for network
+    
