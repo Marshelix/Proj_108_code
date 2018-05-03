@@ -173,6 +173,7 @@ def add_strings(grid, G_mu,v,num_strings,tgname,sname,A = 0,b_Verbose = False):
         
         
     '''
+    gamma = 1
     if v is not 1:
         gamma = 1/np.sqrt(1-v**2)
     amp = 0

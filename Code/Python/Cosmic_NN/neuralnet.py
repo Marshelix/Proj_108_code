@@ -30,6 +30,7 @@ from dataloader import dataloader
 from torch import nn
 import torch.nn.functional as F
 
+import torch.optim as optim
 import matplotlib.pyplot as plt
 import random
 import math
@@ -53,11 +54,14 @@ class network(nn.Module):
         self.fc1 = nn.Linear(lin_input_size,num_classes)
 
     def forward(self, x):
-        
+        #print(x.shape)
         batsize = x.shape[0]
         x = self.pool(F.relu(self.conv1(x)))
+        #print(x.shape)
         x = self.pool(F.relu(self.conv2(x)))
+        #print(x.shape)
         x = x.view(batsize, -1)
+        #print(x.shape)
         x = F.relu(self.fc1(x))
         #x = F.relu(self.fc2(x))
         #x = self.fc3(x)
@@ -144,18 +148,23 @@ if __name__ == "__main__":
     
     raw_data = bl.load_data(bl.load_filenames(datapath,"sub"),i_multiplier = 10)
     usage_percentage = 0.3
-    cutoff_use = int(usage_percentage*len(raw_data))
-    add_test_data = raw_data[int((len(raw_data)-cutoff_use)/2):] #can use later for testing
-    raw_data = raw_data[:int((len(raw_data)-cutoff_use)/2)]
+    cv_percentage = 0.1
+    cut_cv = int(cv_percentage*len(raw_data))
+    add_test_data = raw_data[int(len(raw_data-cut_cv)):]
+    raw_data = raw_data[:int(len(raw_data-cut_cv))]
+    #cutoff_use = int(usage_percentage*len(raw_data))
+    #add_test_data = raw_data[int((len(raw_data)-cutoff_use)/2):] #can use later for testing
+    #raw_data = raw_data[:int((len(raw_data)-cutoff_use)/2)]
     cutoff_use = int(usage_percentage*len(raw_data))
     raw_data = raw_data[:cutoff_use]
-    log("Using "+str(100*usage_percentage)+"% of data overall.")
+    log("Using "+str(100*cv_percentage) +"% of data for cross validation.")
+    log("Using "+str(100*usage_percentage)+"% of remaining data.")
     
     cutoff_percentage = 0.65    #How many percent to use for training/
     cutoff = int(cutoff_percentage*len(raw_data))
     raw_data_train = raw_data[:cutoff]
     raw_data_test = raw_data[cutoff:]
-    log("Using "+str(100*cutoff_percentage)+"% of data for training.")
+    log("Using "+str(100*cutoff_percentage)+"% of remaining data for training.")
     
   
     
@@ -189,7 +198,7 @@ if __name__ == "__main__":
     log("Amount of maps selected for strings per batch: "+str(percentage_with_strings*batchsize))
     t_g_start = datetime.now()
     for G_mu in Gmus:
-        v = 1e-2
+        v = 0.5
         A = G_mu*v
         log("Values for string maps: (G_mu,v,A):("+str(G_mu)+","+str(v)+","+str(A)+")")
         for batch in batches:
@@ -216,55 +225,100 @@ if __name__ == "__main__":
     #got all batches set correctly
     #this is now training and testing data
     log("#"*30)
-    
+    '''
+    #
+    # Check maps visually
+    #    
+    batches_per_gmu = len(test_arr)/num_Gmus
+    for i in range(num_Gmus):
+        idx = i*batches_per_gmu
+        batch = test_arr[int(idx)][0]
+        for j in range(5):
+            cmap = batch[j]
+            fname = "Figures\Sample_map_"+str(Gmus[i])+"_"+str(v)+"_"+str(j)+".png"
+            with open(fname, "wb") as f:
+                cmap.plot(fname = f)
+    plt.close("all")
+    '''    
     ######
     #Network definition
     #####
-    output_size = 2
+    #Training Epochs
+    epochs = 3000
     
-    img_size = 222
+    b_Load_nets = False
+    
+    if b_Load_nets:
+        #
+        #
+        #   LOADING DOESNT WORK
+        #
+        #
+        log("Loading Network from file")
+        res = bl.load_network()
+        if isinstance(res,bool):
+            #returned false
+            log("Network could not be loaded. One or more of the files are missing")
+            b_Load_nets = False
+        else:
+            log("Network, optimizer and criterion loaded")
+            net,crit,optimizer = res
+            
+    elif not b_Load_nets:
+        output_size = 2
+    
+        img_size = 222
     
     
-    in_channels = 1
-    out_channels_conv1 = 1
-    kernel_conv1 = 3  #Conv layer 1
-    out_channels_conv2 = 1
-    kernel_conv2 = 2   #Conv layer 2
-    pooling_kernel_1 = 2 #Pooling layer 1
-    lin_input_size = in_channels*(int((((img_size - kernel_conv1 -1)/pooling_kernel_1)-kernel_conv2-1)/pooling_kernel_1)+1)**2
-    lin_output_size = 2
-    net =network(num_classes=num_Gmus)# network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
-#                  out_channels_conv2,
-#                  kernel_conv2,
-#                  pooling_kernel_1,pooling_kernel_2,lin_input_size,lin_output_size)
-    print("="*10 + "NETWORK"+"="*10)
-    print(net)
-    print("="*27)
-    log("#"*30)
-    if use_cuda:
-        net = net.cuda()
+        in_channels = 1
+        out_channels_conv1 = 1
+        kernel_conv1 = 16  #Conv layer 1
+        out_channels_conv2 = 1
+        kernel_conv2 = 2   #Conv layer 2
+        pooling_kernel_1 = 2 #Pooling layer 1
     
-    #####
-    # Training parameters
-    #####
+        #Size at each step:
+        step_1_img = int((img_size - kernel_conv1-1)/pooling_kernel_1)
     
-    import torch.optim as optim
-    crit = nn.CrossEntropyLoss()
-    lr = 1e-5
-    mom = 0.9
-    wd = 1e-2
-    log("Optimizer definition:")
-    log("lr = "+str(lr)+", momentum = "+str(mom)+", weight decay(l2) = "+str(wd))
-    optimizer = optim.SGD(net.parameters(),lr,momentum = mom,weight_decay=wd)
-    log("Network and optimizers created")
-    log("#"*30)
+        step_2_img = int(((step_1_img - kernel_conv2 -1)/pooling_kernel_1))
+    
+        lin_input_size = out_channels_conv2*int(step_2_img+2)**2
+        lin_output_size = num_Gmus
+        net =network(in_channels,out_channels_conv1,kernel_conv1,
+                     out_channels_conv2,kernel_conv2,
+                     pooling_kernel_1,
+                     lin_input_size,num_classes=num_Gmus)# network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
+#                      out_channels_conv2,
+#                      kernel_conv2,
+#                      pooling_kernel_1,pooling_kernel_2,lin_input_size,lin_output_size)
+        log("="*10 + "NETWORK"+"="*10)
+        log(net.__str__())
+        log("="*27)
+        log("#"*30)
+        if use_cuda:
+            net = net.cuda()
+    
+        #####
+        # Training parameters
+        #####
+    
+        crit = nn.CrossEntropyLoss()
+        lr = 1e-6
+        mom = 0.9
+        wd = 1e-1
+        log("Optimizer definition:")
+        log("lr = "+str(lr)+", momentum = "+str(mom)+", weight decay(l2) = "+str(wd))
+        optimizer = optim.SGD(net.parameters(),lr,momentum = mom,weight_decay=wd)
+        log("Network and optimizers created")
+        log("#"*30)
+        
+            
+        
     
     #######
     # Time till training completion
     #######
-    
-    epochs = 1600
-    
+
     time_per_epoch_map = 0.003597  #s from test
     dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
     
@@ -393,9 +447,9 @@ if __name__ == "__main__":
             #print("Correctness Values: ")
             num_tested += len(cur_maps)
             #print(pred_class.eq(classif.data.view_as(pred_class)).long())
-        log("Test set accuracy: "+str(100*correct.item()/total_test) + "% ,loss = "+str(test_loss_train))
-        log("Correct hits: "+str(correct.item())+"/"+str(total_test))
-        correctness.append(100*correct/total_test)    
+        log("Test set accuracy: "+str(100*correct.item()/num_tested) + "% ,loss = "+str(test_loss_train))
+        log("Correct hits: "+str(correct.item())+"/"+str(num_tested))
+        correctness.append(100*correct/num_tested)    
         test_losses.append(test_loss_train)
         ax2.clear()
         ax2.plot(test_losses)
@@ -406,10 +460,11 @@ if __name__ == "__main__":
         ax3.set_title("Accuracy @ Epoch #: "+str(epoch)+" => " +str(100*correct.item()/num_tested)+"%")      
         
         ax4.plot(test_losses/np.max(test_losses))
-        #difference in relative changes
-        ax5.clear()
-        ax5.plot((test_losses/np.max(test_losses) - train_losses/np.max(train_losses)))
-        ax5.set_title("Difference in relative losses @ Epoch #"+str(epoch))
+        if len(test_losses) == len(train_losses):
+            #difference in relative changes
+            ax5.clear()
+            ax5.plot((test_losses/np.max(test_losses) - train_losses/np.max(train_losses)))
+            ax5.set_title("Difference in relative losses @ Epoch #"+str(epoch))
         plt.pause(1e-7)
         
         calc_accuracy_per_class(epoch)  #calculate accuracies for each class and plot
@@ -496,6 +551,13 @@ if __name__ == "__main__":
     ######
     if will_save_model:
         f_savename = "Models/Model_"+str(epochs)+"_"+str(num_Gmus)+"_"+str(int(100*usage_percentage))
+        log("Saving model files to : "+f_savename)
+        if os.path.isfile(f_savename+"_model.dat"):
+            f_savename = f_savename + "__2"
+            i = 3
+            while os.path.is_file(f_savename +"_model.dat"):
+                f_savename = f_savename[:-1]+str(i)#change savename to right numerator
+                i = i+1
         with open(f_savename+"_model.dat","wb") as f:
             torch.save(net,f)
         #Save state dicts
@@ -503,6 +565,8 @@ if __name__ == "__main__":
             torch.save(net.state_dict(),f)
         with open(f_savename+"_opti_dict.dat","wb") as f:
             torch.save(optimizer.state_dict(),f)
+        with open(f_savename + "_crit_dict.dat","wb") as f:
+            torch.save(crit.state_dict(),f)
         fig.savefig(f_savename + "_figures.png")
     
     log("*"*30)
@@ -518,9 +582,16 @@ if __name__ == "__main__":
     log("Using "+str(100*usage_percentage)+"% of input data")
     log("String percentage = "+str(100*percentage_with_strings)+"%")
     log("Amount of string classes = "+str(num_Gmus))
-    log("Amount of string implanted maps from base maps= "+str(smaps_per_maps))
+    log("String Velocity = "+str(v))
+    log("Amount of string implanted maps from each base map = "+str(smaps_per_maps))
     log("Split of training data/test data: "+str(100*cutoff_percentage)+"%/"+str(100*(1-cutoff_percentage))+"%")
+    log("Network: ")
+    log(net.__str__())
     log("*"*30)
+    
+    if will_save_model:
+        with open("Models/network.txt","w") as f:
+            f.write(net.__str__())
     
     
     def test_new_item(x):

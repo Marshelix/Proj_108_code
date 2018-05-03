@@ -23,6 +23,7 @@ import pickle
 from datetime import datetime
 import pyshtools as sht
 import math
+import torch.nn
 
 if __name__ == "__main__":
     #detect which path to load data from
@@ -309,15 +310,30 @@ def log(s):
         f.write("["+str(datetime.now())+"]: "+s+"\n")
         print("["+str(datetime.now())+"]: "+s)
 
+def load_network(lr,mom = 0.9,wd = 0):
+    '''
+    Load a network, optimizer and 
+    '''
+    log("Loading Filename(eg. Models/Model_epochs_#classes_percentage-used)")
+    filename_start = input("What is the base of the filename?")
+    if not (os.path.isfile(filename_start + "_model.dat") and os.path.isfile(filename_start + "_net_dict.dat") and os.path.isfile(filename_start + "_opti_dict.dat") and os.path.isfile(filename_start + "_crit_dict.dat")):
+        return False
+    else:
+        
+        net = torch.load(filename_start + "_model.dat")
+        log("network loaded")
+        net.load_state_dict(torch.load(filename_start + "_net_dict.dat"))
+        log("State dict loaded")
+        with open(filename_start + "_opti_dict.dat","rb") as f:
+            optimizer = torch.optim.SGD(lr,mom,wd)
+            optimizer.load_state_dict(torch.load(f))
+            log("Optimizer loaded")
+        with open(filename_start + "_crit_dict.dat","rb") as f:
+            crit = torch.nn.CrossEntropyLoss()
+            crit = crit.load_state_dict(torch.load(f))
+            log("Criterion loaded")
+        return net,optimizer,crit
 if __name__ == "__main__":
     t_start = datetime.now()
-    data = load_data(load_filenames(datapath,"sub"))
-    print(len(data))
-    
-    norm_dat = normalize_data(data)
-    
-    t_elapsed = datetime.now() - t_start
-    
-    print("Elapsed time one file loading: "+str(t_elapsed))
-    dataarr_to_tensor_stack(norm_dat,False)
+    load_network(1e-6,0.9,1e-1)
     
