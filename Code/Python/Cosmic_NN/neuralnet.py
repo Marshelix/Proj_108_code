@@ -145,86 +145,93 @@ if __name__ == "__main__":
     # Data Aqcuisition
     #####
     
-    
-    raw_data = bl.load_data(bl.load_filenames(datapath,"sub"),i_multiplier = 10)
     usage_percentage = 0.3
     cv_percentage = 0.1
-    cut_cv = int(cv_percentage*len(raw_data))
-    add_test_data = raw_data[int(len(raw_data-cut_cv)):]
-    raw_data = raw_data[:int(len(raw_data-cut_cv))]
-    #cutoff_use = int(usage_percentage*len(raw_data))
-    #add_test_data = raw_data[int((len(raw_data)-cutoff_use)/2):] #can use later for testing
-    #raw_data = raw_data[:int((len(raw_data)-cutoff_use)/2)]
-    cutoff_use = int(usage_percentage*len(raw_data))
-    raw_data = raw_data[:cutoff_use]
-    log("Using "+str(100*cv_percentage) +"% of data for cross validation.")
-    log("Using "+str(100*usage_percentage)+"% of remaining data.")
+    cutoff_percentage = 0.65
+    batchsize = 10
+    smaps_per_maps = 5#settings["NN"][0]
+    Gmus = [0,1e-5,1e-6]#1e-7]#1e-8,1e-9,1e-10,1e-11]
+    num_Gmus = len(Gmus)
+    percentage_with_strings = 1
+    v = 0.5
+    def load_test_data(usage_percentage = usage_percentage, cv_percentage = cv_percentage,cutoff_percentage = cutoff_percentage, batchsize = batchsize,smaps_per_maps = smaps_per_maps, Gmus = Gmus, num_Gmus = num_Gmus,percentage_with_strings=percentage_with_strings,v = v):
+        '''
+        Load test data. Useful as it can be used from console for extended training
+        '''
+        log("Creating a new Dataset")
+        raw_data = bl.load_data(bl.load_filenames(datapath,"sub"),i_multiplier = 10)
+        cut_cv = int(cv_percentage*len(raw_data))
+        add_test_data = raw_data[int(len(raw_data-cut_cv)):]
+        raw_data = raw_data[:int(len(raw_data-cut_cv))]
+        cutoff_use = int(usage_percentage*len(raw_data))
+        raw_data = raw_data[:cutoff_use]
+        log("Using "+str(100*cv_percentage) +"% of data for cross validation.")
+        log("Using "+str(100*usage_percentage)+"% of remaining data.")
     
-    cutoff_percentage = 0.65    #How many percent to use for training/
-    cutoff = int(cutoff_percentage*len(raw_data))
-    raw_data_train = raw_data[:cutoff]
-    raw_data_test = raw_data[cutoff:]
-    log("Using "+str(100*cutoff_percentage)+"% of remaining data for training.")
+        #How many percent to use for training/
+        cutoff = int(cutoff_percentage*len(raw_data))
+        raw_data_train = raw_data[:cutoff]
+        raw_data_test = raw_data[cutoff:]
+        log("Using "+str(100*cutoff_percentage)+"% of remaining data for training.")
     
   
     
-    log("Raw Data loaded. Turning to batches")
-    
-    batchsize = 10
-    
-    batches = bl.arr_to_batches(raw_data_train,batchsize,False)
-    batches_test = bl.arr_to_batches(raw_data_test,batchsize,False)
-    log("Batches generated")
-    
-    smaps_per_maps = 5#settings["NN"][0]
-    log("Generating "+str(smaps_per_maps) +" string maps per stringless one/type of string.")
+        log("Raw Data loaded. Turning to batches")
     
     
-    ###
-    # Projected time till completion
-    ###
-    time_per_map_gmu = 0.046399 #each map adds about 1.5 min
-
-    Gmus = [0,1e-5,1e-6]#1e-7]#1e-8,1e-9,1e-10,1e-11]
-    num_Gmus = len(Gmus)
-    dt_gen = timedelta(seconds = time_per_map_gmu*smaps_per_maps*num_Gmus)
-    log("Estimated time till completion of map generation: "+str(dt_gen))
-    log("Estimated time of completion of map generation: "+str(datetime.now() + dt_gen))
-    #Train network not just on one G_mu but multiple ones
-    train_arr = []
-    test_arr = []
-    percentage_with_strings = 1
-    log("Percent of maps with strings per batch: "+str(100*percentage_with_strings)+"%.")
-    log("Amount of maps selected for strings per batch: "+str(percentage_with_strings*batchsize))
-    t_g_start = datetime.now()
-    for G_mu in Gmus:
-        v = 0.5
-        A = G_mu*v
-        log("Values for string maps: (G_mu,v,A):("+str(G_mu)+","+str(v)+","+str(A)+")")
-        for batch in batches:
-            stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True)
-            #stack = bl.normalize_data(np.array(stack),"0-1",True)
-            train_arr.append(stack)
-        log("Training Batches generated. "+str(len(train_arr)) +" Batches in train_arr.")
+    
+        batches = bl.arr_to_batches(raw_data_train,batchsize,False)
+        batches_test = bl.arr_to_batches(raw_data_test,batchsize,False)
+        log("Batches generated")
         
-        log(str(len(train_arr[0][0]))+" elements per train batch.")
+        log("Generating "+str(smaps_per_maps) +" string maps per stringless one/type of string.")
+        
+        
+        ###
+        # Projected time till completion
+        ###
+        time_per_map_gmu = 0.046399 #each map adds about 1.5 min
     
-        for batch in batches_test:
-            stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True)
-            #stack = bl.normalize(stack,"0-1")
-            test_arr.append(stack)
-        log("Testing Batches generated. "+str(len(test_arr)) + " Batches in test_arr.")
-        log(str(len(test_arr[0][0]))+" elements per test batch.")
-    t_g_ela = datetime.now() - t_g_start
-    tgela_per_map_gmu = t_g_ela/(num_Gmus*len(test_arr)*len(test_arr[0])*4)
+    
+        dt_gen = timedelta(seconds = time_per_map_gmu*smaps_per_maps*num_Gmus)
+        log("Estimated time till completion of map generation: "+str(dt_gen))
+        log("Estimated time of completion of map generation: "+str(datetime.now() + dt_gen))
+        #Train network not just on one G_mu but multiple ones
+        train_arr = []
+        test_arr = []
+    
+        log("Percent of maps with strings per batch: "+str(100*percentage_with_strings)+"%.")
+        log("Amount of maps selected for strings per batch: "+str(percentage_with_strings*batchsize))
+        t_g_start = datetime.now()
+        for G_mu in Gmus:
+            A = G_mu*v
+            log("Values for string maps: (G_mu,v,A):("+str(G_mu)+","+str(v)+","+str(A)+")")
+            for batch in batches:
+                stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True)
+                #stack = bl.normalize_data(np.array(stack),"0-1",True)
+                train_arr.append(stack)
+            log("Training Batches generated. "+str(len(train_arr)) +" Batches in train_arr.")
+        
+            log(str(len(train_arr[0][0]))+" elements per train batch.")
+        
+            for batch in batches_test:
+                stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True)
+                #stack = bl.normalize(stack,"0-1")
+                test_arr.append(stack)
+            log("Testing Batches generated. "+str(len(test_arr)) + " Batches in test_arr.")
+            log(str(len(test_arr[0][0]))+" elements per test batch.")
+        t_g_ela = datetime.now() - t_g_start
+        tgela_per_map_gmu = t_g_ela/(num_Gmus*len(test_arr)*len(test_arr[0])*4)
     
  
-    #train_arr[0][0][9].expand()
-    log("Time elapsed on map generation: "+str(t_g_ela))
-    log("Time elapsed per map in generation: "+str(tgela_per_map_gmu))
-    #got all batches set correctly
-    #this is now training and testing data
-    log("#"*30)
+        #train_arr[0][0][9].expand()
+        log("Time elapsed on map generation: "+str(t_g_ela))
+        log("Time elapsed per map in generation: "+str(tgela_per_map_gmu))
+        #got all batches set correctly
+        #this is now training and testing data
+        log("#"*30)
+        return train_arr, test_arr
+    train_arr, test_arr = load_test_data()
     '''
     #
     # Check maps visually
@@ -244,7 +251,7 @@ if __name__ == "__main__":
     #Network definition
     #####
     #Training Epochs
-    epochs = 3000
+    epochs = 4000
     
     b_Load_nets = False
     
@@ -254,15 +261,43 @@ if __name__ == "__main__":
         #   LOADING DOESNT WORK
         #
         #
-        log("Loading Network from file")
-        res = bl.load_network()
-        if isinstance(res,bool):
-            #returned false
-            log("Network could not be loaded. One or more of the files are missing")
-            b_Load_nets = False
-        else:
-            log("Network, optimizer and criterion loaded")
-            net,crit,optimizer = res
+        log("Generating Network architecture")
+        output_size = 2
+    
+        img_size = 222
+    
+    
+        in_channels = 1
+        out_channels_conv1 = 1
+        kernel_conv1 = 16  #Conv layer 1
+        out_channels_conv2 = 1
+        kernel_conv2 = 2   #Conv layer 2
+        pooling_kernel_1 = 2 #Pooling layer 1
+    
+        #Size at each step:
+        step_1_img = int((img_size - kernel_conv1-1)/pooling_kernel_1)
+    
+        step_2_img = int(((step_1_img - kernel_conv2 -1)/pooling_kernel_1))
+    
+        lin_input_size = out_channels_conv2*int(step_2_img+2)**2
+        lin_output_size = num_Gmus
+        net =network(in_channels,out_channels_conv1,kernel_conv1,
+                     out_channels_conv2,kernel_conv2,
+                     pooling_kernel_1,
+                     lin_input_size,num_classes=num_Gmus)# network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
+#                      out_channels_conv2,
+#                      kernel_conv2,
+#                      pooling_kernel_1,pooling_kernel_2,lin_input_size,lin_output_size)
+        log("="*10 + "NETWORK"+"="*10)
+        log(net.__str__())
+        log("="*27)
+        log("#"*30)
+        if use_cuda:
+            net = net.cuda()
+        best_model = "Models/Model_3000_3_30"
+        net_dict = torch.load(best_model+"_net_dict.dat")
+        opti_dict = torch.load(best_model + "_opti_dict.dat")
+    
             
     elif not b_Load_nets:
         output_size = 2
@@ -309,6 +344,8 @@ if __name__ == "__main__":
         log("Optimizer definition:")
         log("lr = "+str(lr)+", momentum = "+str(mom)+", weight decay(l2) = "+str(wd))
         optimizer = optim.SGD(net.parameters(),lr,momentum = mom,weight_decay=wd)
+        if b_Load_nets:
+            optimizer.load_state_dict(opti_dict)
         log("Network and optimizers created")
         log("#"*30)
         
@@ -326,18 +363,21 @@ if __name__ == "__main__":
     t_train_finish_proj = t_train_start + dt_train
     log("Projected finishing time = "+str(t_train_finish_proj))
     log("Projected time to completion = "+str(dt_train))
+    def setup_figures():
+        train_losses = []
+        test_losses = []
+        correctness = []
+        # correctness_per_class: array of arrays for all classes
+        correctness_per_class = []
+        for i in range(num_Gmus):
+            correctness_per_class.append([])
     
-    train_losses = []
-    test_losses = []
-    correctness = []
-    # correctness_per_class: array of arrays for all classes
-    correctness_per_class = []
-    for i in range(num_Gmus):
-        correctness_per_class.append([])
+        pred_changed = []
+        fig,(ax1,ax2,ax3,ax4,ax5,ax6) = plt.subplots(6,1)
+        fig.tight_layout()
+        return fig,(ax1,ax2,ax3,ax4,ax5,ax6),train_losses,test_losses,correctness,correctness_per_class,pred_changed
+    fig,(ax1,ax2,ax3,ax4,ax5,ax6),train_losses,test_losses,correctness,correctness_per_class,pred_changed = setup_figures()
     
-    pred_changed = []
-    fig,(ax1,ax2,ax3,ax4,ax5,ax6) = plt.subplots(6,1)
-    fig.tight_layout()
     ###########################################################################
     #Setup end
     ###########################################################################
