@@ -45,21 +45,21 @@ import random
 import matplotlib.pyplot as plt
 import pyshtools as sht # Spherical Harmonics tools
 #Setup
+if __name__ == "__main__":
+    start_time = time.time()
 
-start_time = time.time()
-
-settings = setup.load_settings()
-#print(settings)
-datapath = settings["Spherharg"][2]  #spherical harmonics data
-datapath_leg = settings["Spherharg"][3]
-
-#Email bot
-
-username = settings["Email"][4]
-password = settings["Email"][3]
-server = settings["Email"][2]
-
-bot = email_bot(settings["Email"][0],settings["Email"][1],server,password,username,int(settings["Email"][5]))
+    settings = setup.load_settings()
+    #print(settings)
+    datapath = settings["Spherharg"][2]  #spherical harmonics data
+    datapath_leg = settings["Spherharg"][3]
+    
+    #Email bot
+    
+    username = settings["Email"][4]
+    password = settings["Email"][3]
+    server = settings["Email"][2]
+    
+    bot = email_bot(settings["Email"][0],settings["Email"][1],server,password,username,int(settings["Email"][5]))
 def load_spectra_from_file(filename,T0 = 2.725):
     ''' 
     Load a .dat file as a csv, delimiter = "    "
@@ -82,9 +82,10 @@ def load_spectra_from_file(filename,T0 = 2.725):
     '''
 
     return df["TT"]*premul
-gen_data_path = settings["Spherharg"][4]
-filename = gen_data_path+"camb_74022160_scalcls.dat"
-info_name = gen_data_path+"Data_camb_74022160.txt" #data on what was used to compute it
+if __name__ == "__main__":
+    gen_data_path = settings["Spherharg"][4]
+filename = "G:\Data\camb_74022160_scalcls.dat"
+info_name = "G:\Data\Data_camb_74022160.txt" #data on what was used to compute it
 
 def read_info(info_name):
     '''
@@ -134,10 +135,10 @@ def gen_map(power_filename, info_name,T0 = 2.725,num_maps = 0,mode = "DH2"):
     fig,ax = plt.subplots()
     cax = ax.imshow(cur_map)
     fig.colorbar(cax)
-    grid.plot(fname = dat_img)
-    ax.set_title("T_max = "+str(np.max(grid.data)))
-    print("Saving data to "+dat_img_bar)
-    fig.savefig(dat_img_bar)
+    grid.plot()#grid.plot(fname = dat_img)
+    #ax.set_title("T_max = "+str(np.max(grid.data)))
+    #print("Saving data to "+dat_img_bar)
+    #fig.savefig(dat_img_bar)
     
     '''
     grad_data = np.array(np.gradient(grid.data))[1]/T0
@@ -570,8 +571,9 @@ def generate_multimap_subset(pfile,ifile,map_ids,T0 = 2.725,angular_size = 10,b_
             bot.append_message("["+str(datetime.now())+"]: "+"Closing Program early at idx = "+str(idx))
             return 0
     return np.array(originals),np.array(arr)
-t_start = datetime.now()
-plt.close("all")
+if __name__ == "__main__":
+    t_start = datetime.now()
+    plt.close("all")
 '''
 v = 0.5
 G_mu = 10**-6
@@ -601,21 +603,32 @@ print("Tg min,max: ("+str(np.min(tg.data))+","+str(np.max(tg.data))+")")
 
 print(np.min(submap_arr)-np.min(tg.data),np.max(submap_arr)-np.max(tg.data))
 '''
+def log(s):
+    
+    if not isinstance(s,str):
+        s = str(s)  #cast into string
+    with open("log_"+str(datetime.today().day)+"_"+str(datetime.today().month)+"_"+str(datetime.today().year)+".txt","a") as f:
+        f.write("["+str(datetime.now())+"]: "+s+"\n")
+        print("["+str(datetime.now())+"]: "+s)
+
+
+
 def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose = True,n_min = 0,save_freq = 10):
     '''
     Generate multiple maps, save them to a file
     
     CURRENT MAP GENERATION PROCESS
     '''
+    log("Generating "+str(n_maps)+" maps.")
     A = G_mu*v
     if b_Verbose:
-        print("#maps= "+str(n_maps))
-        print("Filename = "+str(filename))
-        print("Info file = "+ str(info_name))
-        print("G_mu = "+str(G_mu))
-        print("V = "+str(v))
+        log("#maps= "+str(n_maps))
+        log("Filename = "+str(filename))
+        log("Info file = "+ str(info_name))
+        log("G_mu = "+str(G_mu))
+        log("V = "+str(v))
     if n_maps < 0:
-        print("n_maps < 0. Inverting")
+        log("n_maps < 0. Inverting")
         n_maps = abs(n_maps)
     sub_maps = []
     
@@ -624,7 +637,8 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
     total_maps = []
     old_save = n_min
     for i in range(n_min,n_min + n_maps+1):
-        cur_map_full = gen_map(filename,info_name,2.725,i)
+        log("Creating map #"+str(i))
+        cur_map_full = gen_map(filename,info_name,2.7255,i)
         full_maps.append(cur_map_full)
         submap_arr_slice = cur_map_full.data[1889:2111] #10 degrees: total sidewidth: 222
         submap_arr = []
@@ -635,7 +649,7 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
             arr = np.array(arr)
             submap_arr.append(arr)
         #generate tgname, sname
-        img_name = gen_data_path+"maps/"
+        img_name = "G:\Data\maps/"
         for c in filename:
             if c not in gen_data_path:
                 if c is ".":
@@ -645,11 +659,11 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
         img_name = img_name + "_"+str(i)
         tgname = img_name + "_grid.png"
         sname = img_name + "_strings.png"
-        print("Tgname = "+tgname)
-        print("Sname = "+sname)
+        #log("Tgname = "+tgname)
+        #log("Sname = "+sname)
         submap_arr = np.array(submap_arr)
-        print("submap min,max: ("+str(np.min(submap_arr))+","+str(np.max(submap_arr))+")")
-        print(submap_arr.shape)
+        #log("submap min,max: ("+str(np.min(submap_arr))+","+str(np.max(submap_arr))+")")
+        #log(submap_arr.shape)
         submap = sht.SHGrid.from_array(submap_arr)
         submap.plot()
         sub_maps.append(submap)
@@ -659,25 +673,26 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
         cax = ax.imshow(submap.data)
         fig.colorbar(cax)
         ax.set_title("T_max = "+str(np.max(submap.data)))
-        print("Saving data to "+dat_img)
+        #log("Saving data to "+dat_img)
         
         fig.savefig(dat_img)
         sm,tg = add_strings(submap,G_mu,v,1,tgname,sname,A)
-        print("Sm min,max: ("+str(np.min(sm.data))+","+str(np.max(sm.data))+")")
-        print("Tg min,max: ("+str(np.min(tg.data))+","+str(np.max(tg.data))+")")
+        #log("Sm min,max: ("+str(np.min(sm.data))+","+str(np.max(sm.data))+")")
+        #log("Tg min,max: ("+str(np.min(tg.data))+","+str(np.max(tg.data))+")")
         string_maps.append(sm)
         total_maps.append(tg)
-        print(np.min(submap_arr)-np.min(tg.data),np.max(submap_arr)-np.max(tg.data))
+        log(np.min(submap_arr)-np.min(tg.data))
+        log(np.max(submap_arr)-np.max(tg.data))
         plt.close("all")
         
         #save if save_freq reached
         if (i-old_save) % save_freq == 0:
-            print("Saving to files.")
+            log("Saving to files.")
             tmname = img_name +"__"+str(old_save)+"_"+str(i)+ "_tmaps.dat"
             smfname = img_name+"__"+str(old_save)+"_"+str(i)+"_smaps.dat"
             fmname = img_name +"__"+str(old_save)+"_"+str(i)+ "_fmaps.dat"
             sbname = img_name +"__"+str(old_save)+"_"+str(i)+"_sub.dat"
-            print(tmname,smfname,fmname,sbname)
+            log(tmname+","+smfname+","+fmname+","+sbname)
             with open(tmname,"wb") as f:
                 pickle.dump(np.array(total_maps),f)
             with open(smfname,"wb") as f:
@@ -692,11 +707,14 @@ def gen_multiple_maps(n_maps,filename,info_name,G_mu = 10**-6,v = 0.5, b_Verbose
             full_maps = []
             sub_maps = []
             old_save = i
+            log("Files saved")
             
     return np.array(total_maps),np.array(string_maps),np.array(full_maps),np.array(sub_maps)
-#gen_multiple_maps(100,filename,info_name,n_min = 1040)
-t_elapsed = datetime.now() - t_start
-print("Elapsed time = "+str(t_elapsed))
+if __name__ == "__main__":
+    t_start = datetime.now()
+    gen_multiple_maps(200,filename,info_name,n_min = 1040)
+    t_elapsed = datetime.now() - t_start
+    print("Elapsed time = "+str(t_elapsed))
 
 '''
 

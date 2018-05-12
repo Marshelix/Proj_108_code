@@ -86,7 +86,7 @@ def load_data(filenames,b_Verbose = False,i_multiplier = 1):
             print(name + " closed.")
     
     return np.array(total_arr)
-def normalize_data(data,normalization = "0-1f",b_Verbose = False):
+def normalize_data(data,normalization = "0-1f",b_Verbose = False,minmax = None):
     '''
     Normalizes a set of data based on a type of normalization, either:
         data = np.array of data to normalize
@@ -99,7 +99,7 @@ def normalize_data(data,normalization = "0-1f",b_Verbose = False):
     if b_Verbose:
         print("normalization = "+normalization)
     new_arr = []
-    if normalization == "1-1" or normalization == "0-1" or normalization == "0-1f":
+    if normalization == "1-1" or normalization == "0-1" or normalization == "0-1f" or normalization == "0-1g":
         if normalization == "1-1":
             for elem in data:
                 minmax = np.max(elem.data) - np.min(elem.data)
@@ -118,6 +118,19 @@ def normalize_data(data,normalization = "0-1f",b_Verbose = False):
                     print("min: "+str(np.min(elem1.data)))
                     print("max: "+str(np.max(elem1.data)))
                 new_arr.append(sht.SHGrid.from_array(elem1))
+        elif normalization == "0-1g":
+            #Global normalization via minmax param
+            if minmax is None:
+                normalization = "0-1f"
+                if b_Verbose:
+                    log("No minmax parameter found. Set to batchwise normalization")
+                #no parameter passed. Set to batchwise normalization
+            else:
+                max_found = minmax[1]
+                min_found = minmax[0]
+                for elem in data:
+                    elem1 = (elem.data - min_found)/(max_found - min_found)
+                    new_arr.append(sht.SHGrid.from_array(elem1))
         elif normalization == "0-1f":
             #normalization via full set
             max_found = 1e-12
@@ -228,7 +241,7 @@ def create_string_maps_arr(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose = Fa
             idx = 0 if G_mu is 0 else (-math.log10(G_mu)-4)    #either ind = 0 for G_mu = 0, 1 for 1e-5, 2 for 1e-6, etc
             val = (smap,idx)#replace 1 with G_mu
             if b_Verbose:
-                print(type(val))
+                print("Index: "+str(idx))
             arr.append(val)
     arr = np.array(arr)
     if b_Verbose:
@@ -236,7 +249,7 @@ def create_string_maps_arr(base_maps,num_smaps_per_map,G_mu,V,Amp,b_Verbose = Fa
     return arr
 
 
-def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 0.5,b_Verbose = False,b_normalize = False):
+def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 0.5,b_Verbose = False,b_normalize = False,minmax = None):
     '''
     Creates an array of maps and indices(2 arrays in one)
     '''
@@ -267,8 +280,10 @@ def create_map_array(base_maps,num_smaps_per_map,G_mu,V,Amp,percentage_string = 
     if b_normalize:
         if b_Verbose:
             log("Normalising")
-        map_arr = normalize_data(map_arr,"0-1f",b_Verbose)
-    
+        if minmax is None:
+            map_arr = normalize_data(map_arr,"0-1f",b_Verbose)
+        else:
+            map_arr = normalize_data(map_arr,"0-1g",b_Verbose,minmax)
     return [np.array(map_arr),np.array(idx_arr)]
 def arr_to_batches(data,batchsize,b_Verbose = False):
     '''
