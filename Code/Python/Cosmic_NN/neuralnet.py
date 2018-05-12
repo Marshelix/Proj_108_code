@@ -40,6 +40,9 @@ log("New Run")
 log("*"*40)
 log("="*40)
 
+
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+
 class network(nn.Module):
     #cifar
     def __init__(self,
@@ -63,9 +66,7 @@ class network(nn.Module):
         x = x.view(batsize, -1)
         #print(x.shape)
         x = F.relu(self.fc1(x))
-        #x = F.relu(self.fc2(x))
-        #x = self.fc3(x)
-       
+        
         return x
     '''
     #def __init__(self,batch_size = 10,num_classes = 2,   #Data for input/output of lin layer
@@ -114,7 +115,7 @@ class network(nn.Module):
 
 if __name__ == "__main__":
     #detect which path to load data from
-    will_save_model =True#for saving later
+    will_save_model =False#for saving later
     print_freq = 50 #%. Output information during training when print_freq amounts are reached
     
     log("Saving system run = "+str(will_save_model))
@@ -145,12 +146,12 @@ if __name__ == "__main__":
     # Data Aqcuisition
     #####
     
-    usage_percentage = 0.3
+    usage_percentage = 0.1
     cv_percentage = 0.1
     cutoff_percentage = 0.65
     batchsize = 10
-    smaps_per_maps = 5#settings["NN"][0]
-    Gmus = [0,1e-5,1e-6]#1e-7]#1e-8,1e-9,1e-10,1e-11]
+    smaps_per_maps = 3#settings["NN"][0]
+    Gmus = [0,1e-2,1e-1,1e-3,1e-4,1e-5,1e-6]#1e-7]#1e-8,1e-9,1e-10,1e-11]
     num_Gmus = len(Gmus)
     percentage_with_strings = 1
     v = 0.5
@@ -158,14 +159,13 @@ if __name__ == "__main__":
         '''
         Load test data. Useful as it can be used from console for extended training
         '''
-        log("Creating a new Dataset")
+        log("Creating Dataset")
         raw_data = bl.load_data(bl.load_filenames(datapath,"sub"),i_multiplier = 10)
-        cut_cv = int(cv_percentage*len(raw_data))
-        add_test_data = raw_data[int(len(raw_data-cut_cv)):]
-        raw_data = raw_data[:int(len(raw_data-cut_cv))]
+        #cut_cv = int(cv_percentage*len(raw_data))
+        #raw_data = raw_data[:int(len(raw_data-cut_cv))]
         cutoff_use = int(usage_percentage*len(raw_data))
         raw_data = raw_data[:cutoff_use]
-        log("Using "+str(100*cv_percentage) +"% of data for cross validation.")
+        #log("Using "+str(100*cv_percentage) +"% of data for cross validation.")
         log("Using "+str(100*usage_percentage)+"% of remaining data.")
     
         #How many percent to use for training/
@@ -173,7 +173,23 @@ if __name__ == "__main__":
         raw_data_train = raw_data[:cutoff]
         raw_data_test = raw_data[cutoff:]
         log("Using "+str(100*cutoff_percentage)+"% of remaining data for training.")
-    
+        #get max in raw_data_train, raw_data_test
+        min_train = 1
+        max_train = 1e-12
+        min_test =1
+        max_test = 1e-12
+        for elem in raw_data_train:
+            if np.min(elem.data) <= min_train:
+                min_train = np.min(elem.data) - max(Gmus)   #possible minimum. Can't know wether this will be the min, just expect it to be.
+            if np.max(elem.data) >= max_train:
+                max_train = np.max(elem.data) + max(Gmus)   #Tentative maximum, forces same normalization.
+        for elem in raw_data_test:
+            if np.min(elem.data) <= min_test:
+                min_test = np.min(elem.data) - max(Gmus)
+            if np.max(elem.data) >= max_test:
+                max_test = np.max(elem.data) + max(Gmus)
+        minmax_train = (min_train,max_train)
+        minmax_test = (min_test,max_test)
   
     
         log("Raw Data loaded. Turning to batches")
@@ -183,19 +199,19 @@ if __name__ == "__main__":
         batches = bl.arr_to_batches(raw_data_train,batchsize,False)
         batches_test = bl.arr_to_batches(raw_data_test,batchsize,False)
         log("Batches generated")
-        
+        log("Generating "+str(num_Gmus) +" classes: "+str(Gmus))
         log("Generating "+str(smaps_per_maps) +" string maps per stringless one/type of string.")
         
         
         ###
         # Projected time till completion
         ###
-        time_per_map_gmu = 0.046399 #each map adds about 1.5 min
+        #time_per_map_gmu = 0.046399 #each map adds about 1.5 min
     
     
-        dt_gen = timedelta(seconds = time_per_map_gmu*smaps_per_maps*num_Gmus)
-        log("Estimated time till completion of map generation: "+str(dt_gen))
-        log("Estimated time of completion of map generation: "+str(datetime.now() + dt_gen))
+        #dt_gen = timedelta(seconds = time_per_map_gmu*smaps_per_maps*num_Gmus)
+        #log("Estimated time till completion of map generation: "+str(dt_gen))
+        #log("Estimated time of completion of map generation: "+str(datetime.now() + dt_gen))
         #Train network not just on one G_mu but multiple ones
         train_arr = []
         test_arr = []
@@ -207,7 +223,7 @@ if __name__ == "__main__":
             A = G_mu*v
             log("Values for string maps: (G_mu,v,A):("+str(G_mu)+","+str(v)+","+str(A)+")")
             for batch in batches:
-                stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True)
+                stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True,minmax_train)
                 #stack = bl.normalize_data(np.array(stack),"0-1",True)
                 train_arr.append(stack)
             log("Training Batches generated. "+str(len(train_arr)) +" Batches in train_arr.")
@@ -215,7 +231,7 @@ if __name__ == "__main__":
             log(str(len(train_arr[0][0]))+" elements per train batch.")
         
             for batch in batches_test:
-                stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True)
+                stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True,minmax_test)
                 #stack = bl.normalize(stack,"0-1")
                 test_arr.append(stack)
             log("Testing Batches generated. "+str(len(test_arr)) + " Batches in test_arr.")
@@ -232,6 +248,14 @@ if __name__ == "__main__":
         log("#"*30)
         return train_arr, test_arr
     train_arr, test_arr = load_test_data()
+    #tr1,t1 = load_test_data(usage_percentage = 0.7)
+    #train_arr = train_arr + tr1
+    #test_arr = test_arr + t1
+    
+    log("Training Batches generated. "+str(len(train_arr)) +" Batches in train_arr.")    
+    log(str(len(train_arr[0][0]))+" elements per train batch.")    
+    log("Testing Batches generated. "+str(len(test_arr)) + " Batches in test_arr.")
+    log(str(len(test_arr[0][0]))+" elements per test batch.")
     '''
     #
     # Check maps visually
@@ -245,13 +269,13 @@ if __name__ == "__main__":
             fname = "Figures\Sample_map_"+str(Gmus[i])+"_"+str(v)+"_"+str(j)+".png"
             with open(fname, "wb") as f:
                 cmap.plot(fname = f)
-    plt.close("all")
-    '''    
+            plt.close("all")
+    '''       
     ######
     #Network definition
     #####
     #Training Epochs
-    epochs = 4000
+    epochs = 500
     
     b_Load_nets = False
     
@@ -294,7 +318,7 @@ if __name__ == "__main__":
         log("#"*30)
         if use_cuda:
             net = net.cuda()
-        best_model = "Models/Model_3000_3_30"
+        best_model = "Models/Model_7000_3_100"
         net_dict = torch.load(best_model+"_net_dict.dat")
         opti_dict = torch.load(best_model + "_opti_dict.dat")
     
@@ -337,32 +361,22 @@ if __name__ == "__main__":
         # Training parameters
         #####
     
-        crit = nn.CrossEntropyLoss()
-        lr = 1e-6
-        mom = 0.9
-        wd = 1e-1
-        log("Optimizer definition:")
-        log("lr = "+str(lr)+", momentum = "+str(mom)+", weight decay(l2) = "+str(wd))
-        optimizer = optim.SGD(net.parameters(),lr,momentum = mom,weight_decay=wd)
-        if b_Load_nets:
-            optimizer.load_state_dict(opti_dict)
-        log("Network and optimizers created")
-        log("#"*30)
+    crit = nn.CrossEntropyLoss()
+    lr = 1e-4
+    mom = 0.7
+    wd = 1e-1
+    log("Optimizer definition:")
+    log("lr = "+str(lr)+", momentum = "+str(mom)+", weight decay(l2) = "+str(wd))
+    optimizer = optim.SGD(net.parameters(),lr,momentum = mom,weight_decay=wd)
+    if b_Load_nets:
+        optimizer.load_state_dict(opti_dict)
+    log("Network and optimizers created")
+    log("#"*30)
         
             
         
     
-    #######
-    # Time till training completion
-    #######
-
-    time_per_epoch_map = 0.003597  #s from test
-    dt_train = timedelta(seconds = time_per_epoch_map * epochs*4*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
-    
-    t_train_start = datetime.now()
-    t_train_finish_proj = t_train_start + dt_train
-    log("Projected finishing time = "+str(t_train_finish_proj))
-    log("Projected time to completion = "+str(dt_train))
+   
     def setup_figures():
         train_losses = []
         test_losses = []
@@ -372,12 +386,22 @@ if __name__ == "__main__":
         for i in range(num_Gmus):
             correctness_per_class.append([])
     
-        pred_changed = []
+        #pred_changed = []
         fig,(ax1,ax2,ax3,ax4,ax5,ax6) = plt.subplots(6,1)
         fig.tight_layout()
-        return fig,(ax1,ax2,ax3,ax4,ax5,ax6),train_losses,test_losses,correctness,correctness_per_class,pred_changed
-    fig,(ax1,ax2,ax3,ax4,ax5,ax6),train_losses,test_losses,correctness,correctness_per_class,pred_changed = setup_figures()
+        return fig,(ax1,ax2,ax3,ax4,ax5,ax6),train_losses,test_losses,correctness,correctness_per_class#,pred_changed
+    fig,(ax1,ax2,ax3,ax4,ax5,ax6),train_losses,test_losses,correctness,correctness_per_class = setup_figures()
     
+    time_per_epoch_map = 0.003597  #s from test
+    dt_train = timedelta(seconds = time_per_epoch_map * epochs*1/(1-cutoff_percentage)*len(test_arr)*len(test_arr[0][0]))  #time estimate based on total time from experiment
+    #######
+    # Time till training completion
+    #######
+
+    t_train_start = datetime.now()
+    t_train_finish_proj = t_train_start + dt_train
+    log("Projected finishing time = "+str(t_train_finish_proj))
+    log("Projected time to completion = "+str(dt_train))
     ###########################################################################
     #Setup end
     ###########################################################################
@@ -429,12 +453,11 @@ if __name__ == "__main__":
             #import pdb; pdb.set_trace()
 
             optimizer.step()
-
            
             # Output changed?
             #print("Prediction after step changed?: ")
             #print((net(in_map) == pred).sum() != 0)
-            pred_changed.append(((net(in_map) == pred).sum() != 0).data)
+            #pred_changed.append(((net(in_map) == pred).sum() != 0).data)
             running_loss += loss.item()
             #for param in net.parameters():
             #    print(param.grad.data.sum())
@@ -589,13 +612,13 @@ if __name__ == "__main__":
     ######
     # Saving
     ######
-    if will_save_model:
+    def save_model():
         f_savename = "Models/Model_"+str(epochs)+"_"+str(num_Gmus)+"_"+str(int(100*usage_percentage))
         log("Saving model files to : "+f_savename)
         if os.path.isfile(f_savename+"_model.dat"):
             f_savename = f_savename + "__2"
             i = 3
-            while os.path.is_file(f_savename +"_model.dat"):
+            while os.path.isfile(f_savename +"_model.dat"):
                 f_savename = f_savename[:-1]+str(i)#change savename to right numerator
                 i = i+1
         with open(f_savename+"_model.dat","wb") as f:
@@ -608,7 +631,10 @@ if __name__ == "__main__":
         with open(f_savename + "_crit_dict.dat","wb") as f:
             torch.save(crit.state_dict(),f)
         fig.savefig(f_savename + "_figures.png")
+        log("Saved to  : "+f_savename)
     
+    if will_save_model:
+        save_model()
     log("*"*30)
     log("Run data: ")
     log("Epochs = "+str(epochs))
@@ -630,7 +656,7 @@ if __name__ == "__main__":
     log("*"*30)
     
     if will_save_model:
-        with open("Models/network.txt","w") as f:
+        with open("Models/network.txt","w+") as f:
             f.write(net.__str__())
     
     
@@ -640,13 +666,11 @@ if __name__ == "__main__":
         '''
         if isinstance(x,sht.SHGrid):
             x = np.array([x])
-        if not isinstance(x,np.array):
-            log("Abort testing: Unknown input class" + str(x.__class__.__name__))
-            return 0
+
         temp_var = []
         for m in x:
             temp_var.append(x.data)
-        maps = Variable(torch.from_numpy(temp_var))
+        maps = Variable(torch.from_numpy(np.array(temp_var)))
         if use_cuda:
             maps = maps.cuda()
         maps = maps.unsqueeze(1)
