@@ -10,13 +10,15 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
 
-sigma = 100
+sigma = 10
 lambd  = 4
 phi = np.linspace(-3*sigma,3*sigma,1000)
 fig = plt.figure()
 ax = fig.gca(projection = '3d')
 X,Y = np.meshgrid(phi,phi)
-V = -lambd/4 * (X*Y - sigma**2)**2
+V = lambd/4 * (X*Y - sigma**2)**2
 ax.plot_surface(X,Y,V)
-
-ax.set_title("Wine bottle Potential")
+ax.set_title("Sombrero Potential")
+ax.set_xlabel(r"$\phi$")
+ax.set_ylabel(r"$\phi$")
+ax.set_zlabel(r"V($\phi$)")
