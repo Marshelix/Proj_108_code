@@ -146,12 +146,12 @@ if __name__ == "__main__":
     # Data Aqcuisition
     #####
     
-    usage_percentage = 0.1
+    usage_percentage = 0.01
     cv_percentage = 0.1
     cutoff_percentage = 0.65
     batchsize = 10
     smaps_per_maps = 3#settings["NN"][0]
-    Gmus = [0,1e-2,1e-1,1e-3,1e-4,1e-5,1e-6]#1e-7]#1e-8,1e-9,1e-10,1e-11]
+    Gmus = [0,1e-1,1e-2,1e-3,1e-4,1e-5,1e-6]#1e-7]#1e-8,1e-9,1e-10,1e-11]
     num_Gmus = len(Gmus)
     percentage_with_strings = 1
     v = 0.5
@@ -275,9 +275,42 @@ if __name__ == "__main__":
     #Network definition
     #####
     #Training Epochs
-    epochs = 500
+    epochs = 1000
     
     b_Load_nets = False
+    log("Generating Network architecture")
+    output_size = 2
+
+    img_size = 222
+
+
+    in_channels = 1
+    out_channels_conv1 = 1
+    kernel_conv1 = 16  #Conv layer 1
+    out_channels_conv2 = 1
+    kernel_conv2 = 8  #Conv layer 2
+    pooling_kernel_1 = 2 #Pooling layer 1
+
+    #Size at each step:
+    step_1_img = int((img_size - kernel_conv1-1)/pooling_kernel_1)
+
+    step_2_img = int(((step_1_img - kernel_conv2 -1)/pooling_kernel_1))
+
+    lin_input_size = out_channels_conv2*int(step_2_img+2)**2
+    lin_output_size = num_Gmus
+    net =network(in_channels,out_channels_conv1,kernel_conv1,
+                 out_channels_conv2,kernel_conv2,
+                 pooling_kernel_1,
+                 lin_input_size,num_classes=num_Gmus)# network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
+#                      out_channels_conv2,
+#                      kernel_conv2,
+#                      pooling_kernel_1,pooling_kernel_2,lin_input_size,lin_output_size)
+    log("="*10 + "NETWORK"+"="*10)
+    log(net.__str__())
+    log("="*27)
+    log("#"*30)
+    if use_cuda:
+        net = net.cuda()
     
     if b_Load_nets:
         #
@@ -285,85 +318,16 @@ if __name__ == "__main__":
         #   LOADING DOESNT WORK
         #
         #
-        log("Generating Network architecture")
-        output_size = 2
-    
-        img_size = 222
-    
-    
-        in_channels = 1
-        out_channels_conv1 = 1
-        kernel_conv1 = 16  #Conv layer 1
-        out_channels_conv2 = 1
-        kernel_conv2 = 2   #Conv layer 2
-        pooling_kernel_1 = 2 #Pooling layer 1
-    
-        #Size at each step:
-        step_1_img = int((img_size - kernel_conv1-1)/pooling_kernel_1)
-    
-        step_2_img = int(((step_1_img - kernel_conv2 -1)/pooling_kernel_1))
-    
-        lin_input_size = out_channels_conv2*int(step_2_img+2)**2
-        lin_output_size = num_Gmus
-        net =network(in_channels,out_channels_conv1,kernel_conv1,
-                     out_channels_conv2,kernel_conv2,
-                     pooling_kernel_1,
-                     lin_input_size,num_classes=num_Gmus)# network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
-#                      out_channels_conv2,
-#                      kernel_conv2,
-#                      pooling_kernel_1,pooling_kernel_2,lin_input_size,lin_output_size)
-        log("="*10 + "NETWORK"+"="*10)
-        log(net.__str__())
-        log("="*27)
-        log("#"*30)
-        if use_cuda:
-            net = net.cuda()
+
         best_model = "Models/Model_7000_3_100"
         net_dict = torch.load(best_model+"_net_dict.dat")
         opti_dict = torch.load(best_model + "_opti_dict.dat")
-    
-            
-    elif not b_Load_nets:
-        output_size = 2
-    
-        img_size = 222
-    
-    
-        in_channels = 1
-        out_channels_conv1 = 1
-        kernel_conv1 = 16  #Conv layer 1
-        out_channels_conv2 = 1
-        kernel_conv2 = 2   #Conv layer 2
-        pooling_kernel_1 = 2 #Pooling layer 1
-    
-        #Size at each step:
-        step_1_img = int((img_size - kernel_conv1-1)/pooling_kernel_1)
-    
-        step_2_img = int(((step_1_img - kernel_conv2 -1)/pooling_kernel_1))
-    
-        lin_input_size = out_channels_conv2*int(step_2_img+2)**2
-        lin_output_size = num_Gmus
-        net =network(in_channels,out_channels_conv1,kernel_conv1,
-                     out_channels_conv2,kernel_conv2,
-                     pooling_kernel_1,
-                     lin_input_size,num_classes=num_Gmus)# network(batchsize,output_size,in_channels,out_channels_conv1,kernel_conv1,
-#                      out_channels_conv2,
-#                      kernel_conv2,
-#                      pooling_kernel_1,pooling_kernel_2,lin_input_size,lin_output_size)
-        log("="*10 + "NETWORK"+"="*10)
-        log(net.__str__())
-        log("="*27)
-        log("#"*30)
-        if use_cuda:
-            net = net.cuda()
-    
-        #####
-        # Training parameters
-        #####
+        
+        net.load_state_dict(net_dict)
     
     crit = nn.CrossEntropyLoss()
-    lr = 1e-4
-    mom = 0.7
+    lr = 5e-5
+    mom = 0.675
     wd = 1e-1
     log("Optimizer definition:")
     log("lr = "+str(lr)+", momentum = "+str(mom)+", weight decay(l2) = "+str(wd))
