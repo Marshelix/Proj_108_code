@@ -7,8 +7,7 @@ Created on Sun Mar 18 01:38:30 2018
 
 import torch
 from torch.autograd import Variable
-import torchvision
-from torch.utils.data import Dataset
+
 import platform
 import os
 import sys
@@ -22,18 +21,18 @@ sys.path.append(os.path.abspath("../Setup"))
 from mailbot import email_bot
 
 from Setup import setup
-import pickle
+
 from datetime import datetime,timedelta
 
 import pyshtools as sht
-from dataloader import dataloader
+
 from torch import nn
 import torch.nn.functional as F
 
 import torch.optim as optim
 import matplotlib.pyplot as plt
 import random
-import math
+
 log("="*40)
 log("*"*40)
 log("New Run")
@@ -68,50 +67,6 @@ class network(nn.Module):
         x = F.relu(self.fc1(x))
         
         return x
-    '''
-    #def __init__(self,batch_size = 10,num_classes = 2,   #Data for input/output of lin layer
-    #             in_channels = 1,out_channels_conv1 = 1,kernel_conv1 = 2,  #Conv layer 1
-    #             out_channels_conv2 = 1,kernel_conv2 = 2,   #Conv layer 2
-    #             pooling_kernel_1 = 16, #Pooling layer 1
-    #             pooling_kernel_2 = 4,  #Pooling layer 2
-    #             lin_input_size = 9,lin_output_size = 2): #lin layer
-    '''
-        #define neural network
-    '''
-        super(network,self).__init__()
-        self.batch_size = batch_size
-        self.num_classes = num_classes
-        self.con1 = nn.Conv2d(in_channels,out_channels_conv1,kernel_conv1)
-        self.pool1 = nn.MaxPool2d(pooling_kernel_1)
-        self.con2 = nn.Conv2d(out_channels_conv1,out_channels_conv2,kernel_conv2)
-        self.pool2 = nn.MaxPool2d(pooling_kernel_2)
-
-        self.lin = nn.Linear(lin_input_size,lin_output_size)
-    def forward(self,x):
-        #log("="*10+"Start of network"+"="*10)
-        batsize = x.data.shape[0]
-        #log(x.data.shape)
-        x = self.con1(F.sigmoid(x))
-        #log("="*10+"After conv1"+"="*10)
-        #log(x.data.shape)
-        x = self.pool1(F.relu(x))
-        #log("="*10+"After pool1"+"="*10)
-        #log(x.data.shape)
-        x = self.con2(F.relu(x))
-        #log("="*10+"After conv2"+"="*10)
-        #log(x.data.shape)
-        x = self.pool2(F.relu(x))
-        #log("="*10+"After pool2"+"="*10)
-        #log(x.data.shape)
-        x = x.view(batsize,-1)
-        #log("="*10+"After view"+"="*10)
-        #log(x.data.shape)
-        arg = F.softmax(F.relu(x),dim = 1)
-        x = self.lin(arg)
-        #log("="*10+"After lin"+"="*10)
-        #log(x.data.shape)
-        return x
-    '''
 
 if __name__ == "__main__":
     #detect which path to load data from
@@ -150,8 +105,8 @@ if __name__ == "__main__":
     cv_percentage = 0.1
     cutoff_percentage = 0.65
     batchsize = 10
-    smaps_per_maps = 3#settings["NN"][0]
-    Gmus = [0,1e-1,1e-2,1e-3,1e-4,1e-5,1e-6]#1e-7]#1e-8,1e-9,1e-10,1e-11]
+    smaps_per_maps = 3
+    Gmus = [0,1e-1,1e-2,1e-3,1e-4,1e-5,1e-6]
     num_Gmus = len(Gmus)
     percentage_with_strings = 1
     v = 0.5
@@ -161,11 +116,10 @@ if __name__ == "__main__":
         '''
         log("Creating Dataset")
         raw_data = bl.load_data(bl.load_filenames(datapath,"sub"),i_multiplier = 10)
-        #cut_cv = int(cv_percentage*len(raw_data))
-        #raw_data = raw_data[:int(len(raw_data-cut_cv))]
+        
         cutoff_use = int(usage_percentage*len(raw_data))
         raw_data = raw_data[:cutoff_use]
-        #log("Using "+str(100*cv_percentage) +"% of data for cross validation.")
+        
         log("Using "+str(100*usage_percentage)+"% of remaining data.")
     
         #How many percent to use for training/
@@ -206,12 +160,7 @@ if __name__ == "__main__":
         ###
         # Projected time till completion
         ###
-        #time_per_map_gmu = 0.046399 #each map adds about 1.5 min
-    
-    
-        #dt_gen = timedelta(seconds = time_per_map_gmu*smaps_per_maps*num_Gmus)
-        #log("Estimated time till completion of map generation: "+str(dt_gen))
-        #log("Estimated time of completion of map generation: "+str(datetime.now() + dt_gen))
+        
         #Train network not just on one G_mu but multiple ones
         train_arr = []
         test_arr = []
@@ -224,7 +173,6 @@ if __name__ == "__main__":
             log("Values for string maps: (G_mu,v,A):("+str(G_mu)+","+str(v)+","+str(A)+")")
             for batch in batches:
                 stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True,minmax_train)
-                #stack = bl.normalize_data(np.array(stack),"0-1",True)
                 train_arr.append(stack)
             log("Training Batches generated. "+str(len(train_arr)) +" Batches in train_arr.")
         
@@ -232,7 +180,6 @@ if __name__ == "__main__":
         
             for batch in batches_test:
                 stack = bl.create_map_array(batch,smaps_per_maps,G_mu,v,A,percentage_with_strings,False,True,minmax_test)
-                #stack = bl.normalize(stack,"0-1")
                 test_arr.append(stack)
             log("Testing Batches generated. "+str(len(test_arr)) + " Batches in test_arr.")
             log(str(len(test_arr[0][0]))+" elements per test batch.")
@@ -240,7 +187,6 @@ if __name__ == "__main__":
         tgela_per_map_gmu = t_g_ela/(num_Gmus*len(test_arr)*len(test_arr[0])*4)
     
  
-        #train_arr[0][0][9].expand()
         log("Time elapsed on map generation: "+str(t_g_ela))
         log("Time elapsed per map in generation: "+str(tgela_per_map_gmu))
         #got all batches set correctly
@@ -248,9 +194,7 @@ if __name__ == "__main__":
         log("#"*30)
         return train_arr, test_arr
     train_arr, test_arr = load_test_data()
-    #tr1,t1 = load_test_data(usage_percentage = 0.7)
-    #train_arr = train_arr + tr1
-    #test_arr = test_arr + t1
+
     
     log("Training Batches generated. "+str(len(train_arr)) +" Batches in train_arr.")    
     log(str(len(train_arr[0][0]))+" elements per train batch.")    
@@ -391,8 +335,7 @@ if __name__ == "__main__":
             for m in cur_maps:
                 temp_arr.append(m.data)
             in_map,classif = Variable(torch.from_numpy(np.array(temp_arr))),Variable(torch.from_numpy(idx))
-            #log("In_map shape: "+str(in_map.data.shape))
-            #log("Classifier shape: "+str(classif.data.shape))
+            
             if use_cuda:
                 in_map = in_map.cuda()
                 classif = classif.cuda()
@@ -401,34 +344,17 @@ if __name__ == "__main__":
             in_map = in_map.float()
             
             pred = net(in_map)  
-            #log("Output shape: "+str(pred.data.shape)) #matrix of [batchsize,numclasses] 
+            
             loss = crit(pred.float(),classif.long())
             
             optimizer.zero_grad()
             loss.backward()
-            #print("Loss: ")
-            #print(loss)
-        
-            #print("Parameters Gradients: ")
-            #for param in net.parameters():
-            #    print(param.grad.data.sum())
-
-            # start debugger
-            #import pdb; pdb.set_trace()
 
             optimizer.step()
            
-            # Output changed?
-            #print("Prediction after step changed?: ")
-            #print((net(in_map) == pred).sum() != 0)
-            #pred_changed.append(((net(in_map) == pred).sum() != 0).data)
             running_loss += loss.item()
-            #for param in net.parameters():
-            #    print(param.grad.data.sum())
             if int(batch_id/len(train_arr)*100) % print_freq == 0:
                 log("[Epoch: "+str(epoch)+"("+str(epoch/max((epochs-1),1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:Running loss: "+str(running_loss))
-                #log("[Epoch: "+str(epoch)+"("+str(epoch/max((epochs-1),1)*100)+"%): Data: "+str(batch_id/len(train_arr)*100)+"%]:String maps percentage: "+str(100*classif.sum().data/len(classif))+"%")
-                # != accuracy
         train_losses.append(running_loss)
         ax1.clear()
         ax1.plot(train_losses)
@@ -453,10 +379,9 @@ if __name__ == "__main__":
             for m in cur_maps:
                 temp_arr.append(m.data)
             in_map = Variable(torch.from_numpy(np.array(temp_arr)))
-            #print("Classifier: ")
             
             classif = Variable(torch.from_numpy(idx))
-            #print(classif)
+        
             if use_cuda:
                 in_map = in_map.cuda()
                 classif = classif.cuda()
@@ -471,9 +396,9 @@ if __name__ == "__main__":
             pred_class = pred_class.long()
             total_test += batchsize
             correct += pred_class.eq(classif.data.view_as(pred_class)).long().cpu().sum()
-            #print("Correctness Values: ")
+            
             num_tested += len(cur_maps)
-            #print(pred_class.eq(classif.data.view_as(pred_class)).long())
+            
         log("Test set accuracy: "+str(100*correct.item()/num_tested) + "% ,loss = "+str(test_loss_train))
         log("Correct hits: "+str(correct.item())+"/"+str(num_tested))
         correctness.append(100*correct/num_tested)    
@@ -644,8 +569,3 @@ if __name__ == "__main__":
         pred_class = pred_class.long()
         return pred_class
         
-        
-                    
-    #TODO:
-    #Write loader for network
-    
